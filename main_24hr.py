@@ -183,6 +183,7 @@ if __name__ == '__main__':
     vars_to_correct_24hr = {'precipitation'   : 'precip_dt' }
 
     print(f"\n#######################################  ")
+    print(f"   Making daily corrected ICAR files for: " )
     print(f"   {model}   {scenario}   {year}   ")
     print(f"#######################################  \n")
 

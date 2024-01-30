@@ -189,9 +189,10 @@ if __name__ == '__main__':
     vars_to_correct_24hr = {'precipitation'   : 'precip_dt' }
 
 
-    print(f"\n#######################################  ")
+    print(f"\n##############################################  ")
+    print(f"   Making 3-hourly corrected ICAR files for: " )
     print(f"   {model}   {scenario}   {year}   ")
-    print(f"#######################################  \n")
+    print(f"##############################################  \n")
 
     # determine timestep (nr of timesteps per day):
     ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(10).zfill(2)}*.nc")
