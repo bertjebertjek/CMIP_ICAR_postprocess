@@ -174,7 +174,7 @@ def open_and_remove_neg_pcp(files_in, nextmonth_file_in, vars_to_correct):
     if isinstance(files_in, str ) :
         print(f'   loading: {files_in}')
         try:
-            ds1 = xr.open_mfdataset( files_in, parallel=True).chunk({"time": -1, "lat_y": "auto", "lon_x": "auto"})
+            ds1 = xr.open_mfdataset( files_in).chunk({"time": -1, "lat_y": "auto", "lon_x": "auto"}) # , parallel=True
         except OSError:
             # if not model in errlist.keys():errlist[model]=[] # initiate a errorlist for this model if it does not yet exist.
             err_file = files_in # err_file.append(ftime)

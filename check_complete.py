@@ -81,7 +81,14 @@ def determine_time_step(path_to_files):
     ts_p_day = int(24/timestep_h)  # nr of timesteps per day
 
     print(f" Input timestep is {timestep}, or {timestep_h}hr")
-    print(f" calendar is {ds.time.dt.calendar}")    # or {ds.time.encoding['calendar']}
+    try:
+        calendar=ds.time.dt.calendar
+    except:
+        try:
+            calendar=ds.time.encoding['calendar']
+        except:
+            calendar="could not determine calendar"
+    print(f" calendar is: {calendar}")    # or {ds.time.encoding['calendar']}
     return ts_p_day
 
 
@@ -117,23 +124,23 @@ def check_month(path_to_files,
 
     # Check length (time)
     if m in [1,3,5,7,8,10,12] and len(ds.time) < 31*ts_p_day: # January, March, May, July, August, October, and December
-        print(f"  {year}-{str(m).zfill(2)} is short")
+        print(f"  month {str(m).zfill(2)} is short")
         err=True
     elif m in [4,6,9,11] and len(ds.time) < 30*ts_p_day:
-        print(f"  {year}-{str(m).zfill(2)} is short")
+        print(f"   month {str(m).zfill(2)} is short")
         err=True
     elif m==2 and len(ds.time) < 28*ts_p_day:
-        print(f"  {year}-{str(m).zfill(2)} is short")
+        print(f"   month {str(m).zfill(2)} is short")
         err=True
     # CHeck nr of data_vars, coords and dims:
     if len(ds.data_vars) < n_data_vars :
-        print(f"  {year}-{str(m).zfill(2)} has less than 21 data vars")
+        print(f"   month {str(m).zfill(2)} has less than 21 data vars")
         err=True
     elif len(list(ds.coords)) < n_coords :
-        print(f"  {year}-{str(m).zfill(2)} has less than 3 coordinates")
+        print(f"   month {str(m).zfill(2)} has less than 3 coordinates")
         err=True
     elif len(list(ds.dims)) < n_dims:
-        print(f"  {year}-{str(m).zfill(2)} has less than 4 dims")
+        print(f"   month {str(m).zfill(2)} has less than 4 dims")
         err=True
 
     if not err: print(f"   no errors found in month {m}")

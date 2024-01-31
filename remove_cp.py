@@ -42,9 +42,9 @@ vars_to_drop=["swe", "soil_water_content", "hfls", "hus2m",
 
 
 # # #   NOISE  # # # #
-noise_path = "/glade/derecho/scratch/bkruyt/CMIP6"
-NOISE_u = xr.open_dataset(f"{noise_path}/uniform_noise_480_480.nc" )
-u_noise = NOISE_u.uniform_noise  #.load() # 55000 x 480 x480
+# noise_path = "/glade/derecho/scratch/bkruyt/CMIP6"
+# NOISE_u = xr.open_dataset(f"{noise_path}/uniform_noise_480_480.nc" )
+# u_noise = NOISE_u.uniform_noise  #.load() # 55000 x 480 x480
 
 
 
@@ -88,12 +88,18 @@ def drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop):
 ##############################
 def remove_3hr_cp(ds_in, m, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid_3hr',
+                  noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
                   drop_vars=False,
                   vars_to_drop=vars_to_drop
                   ):
 
     # for legacy code?
     dt='3hr'
+
+
+    # NOISE_u = xr.open_dataset(f"{noise_path}" )
+    u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
+
 
     #___________ GCM cp ____________
     yr_10 = myround(year, base=10)  # the decade in which the year falls
@@ -196,9 +202,16 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
 ##############################
 def remove_24hr_cp(ds_in, m, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
+                  noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
                   drop_vars=False,
                   vars_to_drop=vars_to_drop
                   ):
+
+    #______ noise ______
+    NOISE_u = xr.open_dataset(f"{noise_path}" )
+    u_noise = NOISE_u.uniform_noise  #.load() # 55000 x 480 x480
+
+
 
     # ______ ICAR pcp var _______
     if 'precip_dt' in ds_in.data_vars:
