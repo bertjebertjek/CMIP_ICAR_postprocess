@@ -71,7 +71,7 @@ def determine_time_step(path_to_files):
         # ds=xr.open_mfdataset(f"{path}/icar_*.nc")
     except OSError:
         print(f"   cannot open {path_to_files}")
-        return
+        sys.exit()
     # except HDFError:
     #     print(f"   cannot open ")
 

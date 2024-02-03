@@ -15,6 +15,16 @@
 #       - called from submit_postprocess(_SLURM).sh
 #       - takes arguments: path_in, path_out, year, model, scenario, remove_cp, GCM_path
 #
+# ------------------------------------------------------------------------------------
+#
+#  ToDo:
+#   - for 3hr input files, load the daily files and replace the precip with a 'fixed precip'
+#
+#
+#
+#
+#
+# ------------------------------------------------------------------------------------
 # Author:
 #       Bert Kruyt, NCAR RAL 2024
 #####################################################################################
@@ -44,7 +54,8 @@ import remove_cp as cp
 def process_command_line():
     '''Parse the commandline'''
     parser = argparse.ArgumentParser(description='remove GCM convective precip, add noise')
-    parser.add_argument('path_in',          help='path input files (should have years as subdirs)')
+    parser.add_argument('path_in',          help='path to 3h input files (should NOT have years as subdirs)')
+    parser.add_argument('path_day_in',    help='path to daily input files (should NOT have years as subdirs)')
     parser.add_argument('path_out',         help='path to write to')
     # parser.add_argument('path_out_nocp',    help='path to write to')  # obsolete
     parser.add_argument('year',             help='year to process')
@@ -59,10 +70,15 @@ def process_command_line():
 
 ######################  24hr files are corrected by year   #########################
 #
+#  This version corrects the precip in the EXISTING daily file(s) in patah_day_in,
+#  by removing the negative precip from the 3hr input files.
+#
+#
 ###################################################################################
-def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
-                                 GCM_path  = '/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
-                                 drop_vars = False
+def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, year,
+                                 file_day_in = None,
+                                 GCM_path    = '/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
+                                 drop_vars   = False
                                 ):
     '''Post process hourly ICAR output to yearly files with 24hr timestep'''
     t00=time.time()
@@ -70,7 +86,7 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
     # __________  check files for completeness  ______
     print(f"\n**********************************************")
     for m in range(1,13):
-        path_m = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m).zfill(2)}*.nc"
+        path_m = f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
         print(f"   checking {year}-{str(m).zfill(2)}")
         check_result = check.check_month( path_to_files=path_m, m=m, ts_p_day=ts_per_day )
@@ -94,13 +110,13 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
 
         # find next month's file (needed to calculate timestep pcp (diff))
         try:
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}/{scenario}/{str(int(year)+1)}/icar_out_{str(int(year)+1)}-01*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
         except:
                 nextmonth_file_in=None  # should catch all fringe cases, ie 2005 in hist, 2050 in sspXXX_2004
         print( "   nextmonth_file_in ", nextmonth_file_in )
 
         # call the correction functions
-        path_y = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-*.nc"
+        path_y = f"{path_in}/{model}_{scenario}/icar_*_{year}-*.nc"
         ds_fxd = fix.open_and_remove_neg_pcp(path_y,
                                             nextmonth_file_in,
                                             vars_to_correct=vars_to_correct_24hr
@@ -112,9 +128,6 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
          sys.exit()
         #  ds_fxd = xr.open_mfdataset( path_y )   # ???? Not tested (or recommended)
 
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds_fxd.coords} \n")
-    # print(f" { ds_fxd.coords}")
 
     # ____________ aggregate to 24hr yearly files __________
     print(f"\n   **********************************************")
@@ -124,21 +137,24 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
     ds24hr = change_temporal_res.make_yearly_24h_file( ds_fxd ) #, directory_3hr=path_out)
     print(f"\n   aggregating to 24hr took: {np.round(time.time()-t0,1)} sec")
 
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds24hr.coords} \n")
 
+    # _____________  only save the precip from this correction, add to exisiting daily files: _______
+    # Calculation of Tmin, Tmax from 1h data is better, and is what we want to keep!
 
-    # # ____________ save corrected , but with cp? _____________
-    # if save_inc_cp:  # make optional?
-    #     # save 3hr dataset to disk:
-    #     file_out_24hr  = f"{path_out}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
-    #     print(f"\n   **********************************************")
-    #     print( '   writing 24hfile to ', file_out_24hr )
+    #  Open original daily  dataset
 
-    #     if not os.path.exists(f"{path_out}/{model}_{scenario}/daily"):
-    #         os.makedirs(f"{path_out}/{model}_{scenario}/daily")
+    try:
+        ds_day = xr.open_mfdataset( file_day_in , parallel=True)
+    except:
+        print(f"\n ! ! !     Cannot open file {file_day_in}")
 
-    #     ds24hr.to_netcdf(file_out_24hr, encoding={'time':{'units':"days since 1900-01-01"}} )
+    ds_day=ds_day.drop(['Prec']) # remove the erroneous daily Precipitation
+
+    ds_day['Prec'] = ds24hr['Prec']
+
+    # check attributes:
+    print(ds_day['Prec'].attrs, ds24hr['Prec'].attrs)
+
 
 
     # _________  remove cp  ____________
@@ -157,21 +173,6 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
                                     )
         print(f"\n   removing cp took: {np.round(time.time()-t0,1)} sec")
 
-
-        # # _________ save 3h nocp file ________
-        # file_out_24hr_nocp  = f"{path_out_nocp}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}{year}-{str(m).zfill(2)}*.nc"
-        # print(f"\n   **********************************************")
-        # print( '   writing 3h_nocp file to ', file_out_24hr_nocp )
-
-        # if not os.path.exists(f"{path_out_nocp}/{model}_{scenario}/daily"):
-        #     os.makedirs(f"{path_out_nocp}/{model}_{scenario}/daily")
-
-        # ds_nocp.to_netcdf( file_out_24hr_nocp,
-        #                     encoding={'time':{'units':"days since 1900-01-01"}}
-        #                     )
-
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds24hr.coords} \n")
 
     # ____________ save output _____________
 
@@ -204,8 +205,8 @@ if __name__ == '__main__':
     # process command line
     args = process_command_line()  # dt should be argument!!
     path_in         = args.path_in
+    path_day_in     = args.path_day_in
     path_out        = args.path_out
-    # path_out_nocp = args.path_out_nocp
     model           = args.model
     scenario        = args.scenario
     # scen    = args.scenario.split('_')[0]  # drop the year from sspXXX_year
@@ -218,8 +219,8 @@ if __name__ == '__main__':
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
     noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
     drop_vars    = False
-    cor_neg_pcp = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
-    # agg_to_24hr  = True # maybe this is not needed, just detect input timestep and go from there? 1
+    cor_neg_pcp  = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
+
 
     ########          correct negative variables          ########
     vars_to_correct_3hr = {'precipitation'   : 'precip_dt',
@@ -230,27 +231,35 @@ if __name__ == '__main__':
 
     vars_to_correct_24hr = {'precipitation'   : 'precip_dt' }
 
+    # The exisiting 24hr file(s) to which we will add the corrected precip:
+    # (Tmin and Tmax in this file are calculated from 1h, and therefore better)
+    file_day_in = f"{path_day_in}/{model}_{scenario}/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
+
 
     print(f"\n#######################################  ")
     print(f"   Making daily corrected ICAR files for: " )
     print(f"      {model}   {scenario}   {year}      \n")
     print(f"   remove GCM cp:           {remove_cp}    ")
-    print(f"   drop unwanted variables: {drop_vars}    ")
+    # print(f"   drop unwanted variables: {drop_vars}    ")
+    print(f"   daily file to be corrected:\n      {file_day_in}    ")
     print(f"#######################################  \n")
 
     # determine timestep (nr of timesteps per day):
     try:
-        files_oct = glob.glob(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(10).zfill(2)}*.nc")
+        files_oct = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
         ts_per_day = check.determine_time_step(files_oct[0])
     except:
-        files = glob.glob(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(1).zfill(2)}*.nc")
+        files = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(1).zfill(2)}*.nc")
         ts_per_day = check.determine_time_step(files[0])
 
-    correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
-                                 GCM_path  = GCM_path,
-                                 drop_vars = drop_vars
-                                )
-
+    if ts_per_day is not None:
+        correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, year,
+                                            file_day_in = file_day_in,
+                                            GCM_path  = GCM_path,
+                                            drop_vars = drop_vars
+                                            )
+    else:
+         print(f" could not determine input timestep")
 
 
 

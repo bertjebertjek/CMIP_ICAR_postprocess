@@ -33,10 +33,6 @@ import time
 import sys
 
 ##################################        USER SETTINGS        ##################################
-# # where the 3hr hourly data is:
-# base_path = '/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_3hr'    # {base_path}/CMIP6_{scen}/{model}/3hr/icar_3hr_*.nc'
-# # base_path = '/glade/campaign/ral/hap/abby/ICAR'
-# out_path  = '/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_3h_pcpfix'
 #
 # !!!   N.B. settings in batch submit script!!!!
 
@@ -150,7 +146,7 @@ def correct_var(ds1, varname, varname_dt, ds2=None):
         ds1[varname_dt] = pcp_dt_pos
 
     # write attrs:
-    ds1[varname_dt].attrs['processing_note'] = f'From the cumulative {varname}, calculated difference with diff(dim="time",label="lower"). Negative values due to restart errors were replaced with interpolated values (linearly interpolated in time).'
+    ds1[varname_dt].attrs['processing_note1'] = f'From the cumulative {varname}, calculated difference with diff(dim="time",label="lower"). Negative values due to restart errors were replaced with interpolated values (linearly interpolated in time).'
     ds1[varname_dt].attrs['units']           = 'kg m-2'
     ds1[varname_dt].attrs['standard_name']   = f'{varname}_amount_dt'
     ds1[varname_dt].attrs['long_name']       = f'timestep {varname} amount '
@@ -222,9 +218,6 @@ def open_and_remove_neg_pcp(files_in, nextmonth_file_in, vars_to_correct):
         has_nextyearfiles=False
         ds2 = None    # has_nextyearfiles=False ;
 
-
-
-
     # returns a dataset with the dt-version of thr variable iso the cumulative variable:
     for varname, varname_dt in vars_to_correct.items():
         # print(f'   correcting {varname} into {varname_dt}' )
@@ -240,9 +233,20 @@ def open_and_remove_neg_pcp(files_in, nextmonth_file_in, vars_to_correct):
 # def main_pcp_fix():
 if __name__=="__main__":
 
-    """ fix negative precipitation"""
+    """ fix negative precipitation - Standalone not functional yet"""
 
-    # argparse ...
+    # process command line
+    args = process_command_line()  # dt should be argument!!
+    path_in         = args.path_in
+    path_out        = args.path_out
+    model           = args.model
+    scenario        = args.scenario
+    # scen    = args.scenario.split('_')[0]  # drop the year from sspXXX_year
+    year            = int(args.year)
+    # remove_cp       = True if args.remove_cp=="True" else False
+    # GCM_path        = args.GCM_cp_path
+
+
 
     # # make output dirs:
     # if (not os.path.exists( f"{args.path_out}/{args.model}_{scenario_out}/3hr" )):
@@ -253,21 +257,12 @@ if __name__=="__main__":
     # # # #   monthly  # # # # #
     for m in range(1, 13):   #!!! start month dynamical based on glob.glob!!
 
-        print(f"\n processing {year}-{str(m).zfill(2)}")
-
-        # # where the output has to go:
-        # out_filestring_3h  =  f"{args.path_out}/{args.model}_{scenario_out}/3hr/icar_3hr_{args.model}_{scen}_{year}-{str(m).zfill(2)}.nc"
+        print(f"\n processing {args.year}-{str(m).zfill(2)}")
 
         # # if out file exists, do not process:
         # if os.path.isfile(out_filestring_3h) & (not overwrite) :
 
-        #     # open the file and check the nr of timesteps and variables  !!!! MODIFY!!!!
-        #     ds_out=xr.open_dataset(out_filestring_3h)
-        #     if len(ds_out.time) > 220 and len(ds_out.data_vars)>20: # februari is 224 (28*8)
-        #         print( f"   !!! output file exists, skipping....")
-        #         continue
-
-        files_in_month = f"{base_path}_{year}-{str(m).zfill(2)}*.nc"
+        files_in_month = f"{path_in}/{model}_{scenario}/{year}/icar_*{year}-{str(m).zfill(2)}*.nc"
 
         # print( "\n")
         # print( len(files_in_month) )

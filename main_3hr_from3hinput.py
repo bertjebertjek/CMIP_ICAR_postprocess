@@ -82,7 +82,8 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
     for m in range(m_start,13):
         t1 = time.time()
 
-        path_m = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m).zfill(2)}*.nc"
+        # path_m = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m).zfill(2)}*.nc"
+        path_m = f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
         # __________  check files for completeness  ______
         print(f"\n**********************************************")
@@ -105,9 +106,10 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         # find next month's file (needed to calculate timestep pcp (diff))
         try:
             if m<12:
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m+1).zfill(2)}*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m+1).zfill(2)}*.nc"))[0]
             elif m==12:
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}/{scenario}/{str(int(year)+1)}/icar_out_{str(int(year)+1)}-01*.nc"))[0]
+                # nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}/{scenario}/{str(int(year)+1)}/icar_out_{str(int(year)+1)}-01*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
         except:
                 nextmonth_file_in=None  # should catch all fringe cases, ie 2005 in hist, 2050 in sspXXX_2004
         print( "   nextmonth_file_in ", nextmonth_file_in )
@@ -127,14 +129,14 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         if int(24/ts_per_day)==1 :
             ds3hr = change_temporal_res.make_3h_monthly_file( ds_fxd ) #, directory_3hr=path_out_3hr)
         elif int(24/ts_per_day)==3 :  # if we already have 3hourly data, just aggregate to monthly?
-            print(f" input data already has 3hr timestep!")
+            print(f"      input data already has 3hr timestep!")
             ds3hr = ds_fxd   #???  aggregate
 
 
         # _________  remove cp  ____________
         if remove_cp:
             print(f"\n   **********************************************")
-            print( f'   removing GCM cp  {year}-{str(m).zfill(2)}')
+            print( f'   removing GCM cp  {year}-{str(m).zfill(2)}  \n')
             t0 =time.time()
             ds3hr = cp.remove_3hr_cp( ds_in       = ds3hr,
                                         m           = m,
@@ -209,9 +211,9 @@ if __name__ == '__main__':
 
     # determine timestep (nr of timesteps per day): (currently diagnostic only)
     try:
-        ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(10).zfill(2)}*.nc")
+        ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
     except:  # if we don;t have month 10 (2005 / 2050 at end of period)
-        ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(1).zfill(2)}*.nc")
+        ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(1).zfill(2)}*.nc")
     # print(f"  input timestep is {int(24/ts_per_day)} hr")
 
     if ts_per_day is not None:
@@ -220,7 +222,8 @@ if __name__ == '__main__':
                                     drop_vars  = drop_vars
                                     )
     else:
-         print(f" could not determine input timestep")
+        print(f" could not determine input timestep")
+
 
 
     print(f"\n------------------------------------------------------ ")

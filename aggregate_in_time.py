@@ -29,9 +29,9 @@ def sum_var_3hr(ds3hr, ds1, varname, varname_dt):
     """ Sum a 1h variable over 3 hours. ds3hr is the 3hourly dataset, ds1 the original hourly."""
 
     # sum over 3 hours:
-    ds3hr[varname_dt]    = ds1[varname_dt].resample(time='3H').sum().astype('float32')
-    # write attrs:
-    ds3hr[varname_dt].attrs['processing_note3'] = f'summed the hourly {varname} amount over 3hours'
+    ds3hr[varname_dt]    = ds1[varname_dt].resample(time='3H').sum().astype('float64') # 64 b/c of overflow??
+     # write attrs:
+    ds3hr[varname_dt].attrs['processing_note2'] = f'summed the hourly {varname} amount over 3hours'
     ds3hr[varname_dt].attrs['units']           = 'kg m-2'
     ds3hr[varname_dt].attrs['standard_name']   = f'{varname}_amount_dt'
     ds3hr[varname_dt].attrs['long_name']       = f'timestep {varname} amount '
@@ -46,7 +46,7 @@ def sum_var_24hr(ds24hr, ds1, varname, varname_dt):
     # sum over 24 hours:
     ds24hr[varname_dt]    = ds1[varname_dt].resample(time='24H').sum().astype('float32')
     # write attrs:
-    ds24hr[varname_dt].attrs['processing_note3'] = f'summed the hourly {varname} amount over 24hours'
+    ds24hr[varname_dt].attrs['processing_note2'] = f'summed the hourly {varname} amount over 24hours'
     ds24hr[varname_dt].attrs['units']           = 'kg m-2'
     ds24hr[varname_dt].attrs['standard_name']   = f'{varname}_amount_dt'
     ds24hr[varname_dt].attrs['long_name']       = f'timestep {varname} amount '
@@ -60,7 +60,7 @@ def sum_var_24hr(ds24hr, ds1, varname, varname_dt):
 def make_3h_monthly_file( ds_in  ): # file2load
     # """ make a 3hourly and a daily file from 1h input file. filename is destilled from input filename,  """
     """ make a 3hourly file from hourly dataset ds1 (can also be path to file(s)) """
-
+    print("   swe and precip are float64")
     # ________ Open 1h file  ____________
     # take ds or path_to_files as input:
     if isinstance( ds_in, str ) :
@@ -121,13 +121,19 @@ def make_3h_monthly_file( ds_in  ): # file2load
 
 
     # SWE: resample nearest iso mean? (Abby's code)
-    ds3hr['swe']              = ds1['swe'].resample(time='3H').nearest().astype('float32')
+    ds3hr['swe']              = ds1['swe'].resample(time='3H').nearest().astype('float64')
     ds3hr['swe'].attrs['processing_note'] = 'took the instantaneous value from hourly output to three hourly data'
 
     ds3hr.attrs['history'] = ds3hr.attrs['history'] + ', modified to 3 hourly data (instantaneous) on '+str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
     #_______ return 3hr file ________
     return ds3hr
+
+
+
+
+
+
 
 
 
@@ -194,11 +200,14 @@ def make_yearly_24h_file( ds_in ):
     # Add Attributes
     ds_daily.attrs=ds1.attrs
 
+
     ds_daily['Prec'].attrs  = ds1[precip_var].attrs
+    # print( "   ds1[precip_var].attrs : ", ds1[precip_var].attrs)
+    # print( "   ds_daily['Prec'].attrs : ", ds_daily['Prec'].attrs)
     ds_daily['Prec'].attrs['units'] = 'kg m-2 d-1'
     ds_daily['Prec'].attrs['standard_name'] = 'precipitation_flux'
     ds_daily['Prec'].attrs['long_name'] = 'precipitation flux per day'
-    ds_daily['Prec'].attrs['description'] = 'calculated from hourly output of cumulative data - precipitation equals the total amount of precipitation that occured throughout the day. e.g. If time stamp is 1950-01-01 00:00:00 then it is the precipitation that occured between 1950-01-01 00:00 and 1950-01-02 00:00'
+    ds_daily['Prec'].attrs['processing_note2'] = 'calculated from timestep precipitation by summation - precipitation equals the total amount of precipitation that occured throughout the day. e.g. If time stamp is 1950-01-01 00:00:00 then it is the precipitation that occured between 1950-01-01 00:00 and 1950-01-02 00:00'
 
     ds_daily['Tmax'].attrs = ds1['ta2m'].attrs
     ds_daily['Tmax'].attrs['non-standard_name'] = 'maximum_daily_air_temperature'
@@ -215,7 +224,7 @@ def make_yearly_24h_file( ds_in ):
     ds_daily.attrs['history'] = ds_daily.attrs['history'] + ', modified to daily data on '+str(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
 
-    #_______ return 3hr file ________
+    #_______ return 24hr file ________
     return ds_daily
 
 
