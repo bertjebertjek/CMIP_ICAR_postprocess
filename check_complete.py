@@ -102,24 +102,24 @@ def check_month(path_to_files,
     """check files in path_to_files for correct nr of timesteps, dims, coordinates and variables"""
 
     err=None
-    try:
-        ds=xr.open_mfdataset(path_to_files)
-        # ds=xr.open_mfdataset(f"{path}/icar_*.nc")
-    except OSError:
-        print(f"   cannot open {path_to_files}")
-        return
-    # except HDFError:
-    #     print(f"   cannot open ")
+    # take ds or path_to_files as input:
+    if isinstance(path_to_files, str ) :
+        # print(f'   loading: {path_to_files}')
+        try:
+            ds = xr.open_mfdataset( path_to_files)
+        except OSError:
+            print(f"   cannot open {path_to_files}")
+            return
+    elif isinstance( path_to_files, xr.core.dataset.Dataset):
+        # print(f"   input is ds with {(path_to_files.time.shape)} timesteps")
+        ds = path_to_files
+    # try:
+    #     ds=xr.open_mfdataset(path_to_files)
+    #     # ds=xr.open_mfdataset(f"{path}/icar_*.nc")
+    # except OSError:
+    #     print(f"   cannot open {path_to_files}")
+    #     return
 
-    # # Determine which month, timestep (hour or 3hr or...)
-    # timestep =  (ds.time.diff(dim='time')).mean().values
-    # timestep_h = int(timestep/60/60/1000/1000/1000)
-    # ts_day = int(24/timestep_h)  # nr of timesteps per day
-    # # if year==y1 and m==10 :  # years break at month==10, print calendar once
-    # if m==1:
-    # #     print(f"   calendar is {ds.time.encoding['calendar']} ")
-    #     print(f" timestep is {timestep}, or {timestep_h}hr")
-    #     print(f" calendar is {ds.time.dt.calendar}")    # or {ds.time.encoding['calendar']}
 
 
     # Check length (time)

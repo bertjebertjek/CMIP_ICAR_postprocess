@@ -36,7 +36,7 @@ conda activate npl
 path_in=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_3hr_month
 path_day_in=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_day
 
-path_out=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full
+path_out=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full2
 
 # Remove GCM cp from ICAR data? Requires GCM cp regdridded to ICAR grid.
 remove_cp=True                     # in case ICAR was run with rain_var=cp !
@@ -53,13 +53,13 @@ allModels=( CanESM5 )
 
 # # #   hist needs 55 jobs, sspXX_2004 needs 0-46, sspXX_2049 needs 0-50!  # # #
 # allScens=(hist ) #ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
-allScens=( ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
+# allScens=( ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
 # allScens=(hist ssp370_2004 ssp370_2049  )
 # allScens=( ssp245_2004  )
 # allScens=(ssp245_2049 )
 # allScens=(ssp585_2049 )
 # allScens=(ssp370_2049)
-# allScens=(hist ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
+allScens=( ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 ssp245_2004 ssp245_2049 )
 
 
 #_______________ launch the python script _____________
@@ -86,11 +86,13 @@ for scen in ${allScens[@]}; do
     echo "Launching yearly 24hr & 3hr file correction for $model $scen ${year}"
     echo " "
 
-    # # # # Launch the 24h file script: (not tested yet for 3h inputs)
-    mkdir -p job_output_daily/${model}_${scen} #_${JOBID}
-    python -u main_24hr_from3hinput.py $path_in $path_day_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
+    # # # # # Launch the 24h file script: (not tested yet for 3h inputs)
+    # rm -r job_output_daily/${model}_${scen}  # make new so folder has correct timestamp
+    # mkdir -p job_output_daily/${model}_${scen} #_${JOBID}
+    # python -u main_24hr_from3hinput.py $path_in $path_day_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
 
     # # # Launch the 3h file script:
+    rm -r job_output_3hr/${model}_${scen}  # make new so folder has correct timestamp
     mkdir -p job_output_3hr/${model}_${scen} #_${JOBID}
     python -u main_3hr_from3hinput.py  $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_3hr/${model}_${scen}/${year}
 

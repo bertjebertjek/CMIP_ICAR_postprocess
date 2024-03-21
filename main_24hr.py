@@ -112,9 +112,17 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
          sys.exit()
         #  ds_fxd = xr.open_mfdataset( path_y )   # ???? Not tested (or recommended)
 
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds_fxd.coords} \n")
-    # print(f" { ds_fxd.coords}")
+    # # # # SAVE TEMP w cp:
+    # print(f"\n   **********************************************")
+    # path_tmp="/glade/derecho/scratch/bkruyt/CMIP6/tmp_w_cp-1"
+    # file_out_tmp=f"{path_tmp}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}.nc"
+    # if not os.path.exists(f"{path_tmp}/{model}_{scenario}/daily"):
+    #     os.makedirs(f"{path_tmp}/{model}_{scenario}/daily")
+    # print( '   writing tmp 24hfile to ', file_out_tmp )
+    # ds_fxd.to_netcdf(file_out_tmp, encoding={'time':{'units':"days since 1900-01-01"},
+    #                                         #   'Prec':{'dtype':"float32"}  # leads to overflow error?
+    #                                           }
+    #                                           )
 
     # ____________ aggregate to 24hr yearly files __________
     print(f"\n   **********************************************")
@@ -124,21 +132,6 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
     ds24hr = change_temporal_res.make_yearly_24h_file( ds_fxd ) #, directory_3hr=path_out)
     print(f"\n   aggregating to 24hr took: {np.round(time.time()-t0,1)} sec")
 
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds24hr.coords} \n")
-
-
-    # # ____________ save corrected , but with cp? _____________
-    # if save_inc_cp:  # make optional?
-    #     # save 3hr dataset to disk:
-    #     file_out_24hr  = f"{path_out}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
-    #     print(f"\n   **********************************************")
-    #     print( '   writing 24hfile to ', file_out_24hr )
-
-    #     if not os.path.exists(f"{path_out}/{model}_{scenario}/daily"):
-    #         os.makedirs(f"{path_out}/{model}_{scenario}/daily")
-
-    #     ds24hr.to_netcdf(file_out_24hr, encoding={'time':{'units':"days since 1900-01-01"}} )
 
 
     # _________  remove cp  ____________
@@ -158,21 +151,6 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
         print(f"\n   removing cp took: {np.round(time.time()-t0,1)} sec")
 
 
-        # # _________ save 3h nocp file ________
-        # file_out_24hr_nocp  = f"{path_out_nocp}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}{year}-{str(m).zfill(2)}*.nc"
-        # print(f"\n   **********************************************")
-        # print( '   writing 3h_nocp file to ', file_out_24hr_nocp )
-
-        # if not os.path.exists(f"{path_out_nocp}/{model}_{scenario}/daily"):
-        #     os.makedirs(f"{path_out_nocp}/{model}_{scenario}/daily")
-
-        # ds_nocp.to_netcdf( file_out_24hr_nocp,
-        #                     encoding={'time':{'units':"days since 1900-01-01"}}
-        #                     )
-
-    # # where did lat lon vars go ?
-    # print(f"\n   lat/lon in coords: {'lat' in ds24hr.coords} \n")
-
     # ____________ save output _____________
 
     # save 24hr dataset to disk:
@@ -184,7 +162,9 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
         os.makedirs(f"{path_out}/{model}_{scenario}/daily")
 
     ds24hr.to_netcdf(file_out_24hr, encoding={'time':{'units':"days since 1900-01-01"},
-                                              'Prec':{'dtype':"float32"}} )
+                                            #   'Prec':{'dtype':"float32"}  # leads to overflow error?
+                                              }
+                                              )
 
 
     print(f"\n   - - - - -     {year}  done   - - - - - ")
@@ -205,7 +185,6 @@ if __name__ == '__main__':
     args = process_command_line()  # dt should be argument!!
     path_in         = args.path_in
     path_out        = args.path_out
-    # path_out_nocp = args.path_out_nocp
     model           = args.model
     scenario        = args.scenario
     # scen    = args.scenario.split('_')[0]  # drop the year from sspXXX_year
@@ -218,8 +197,8 @@ if __name__ == '__main__':
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
     noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
     drop_vars    = False
-    cor_neg_pcp = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
-    # agg_to_24hr  = True # maybe this is not needed, just detect input timestep and go from there? 1
+    cor_neg_pcp  = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
+
 
     ########          correct negative variables          ########
     vars_to_correct_3hr = {'precipitation'   : 'precip_dt',
@@ -232,10 +211,10 @@ if __name__ == '__main__':
 
 
     print(f"\n#######################################  ")
-    print(f"   Making daily corrected ICAR files for: " )
-    print(f"      {model}   {scenario}   {year}      \n")
-    print(f"   remove GCM cp:           {remove_cp}    ")
-    print(f"   drop unwanted variables: {drop_vars}    ")
+    print(f"#   Making daily corrected ICAR files for: " )
+    print(f"#      {model}   {scenario}   {year}      \n")
+    print(f"#   remove GCM cp:           {remove_cp}    ")
+    # print(f"#   drop unwanted variables: {drop_vars}    ")
     print(f"#######################################  \n")
 
     # determine timestep (nr of timesteps per day):

@@ -80,6 +80,7 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         m_start = 1
 
     for m in range(m_start,13):
+
         t1 = time.time()
 
         path_m = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m).zfill(2)}*.nc"
@@ -120,6 +121,10 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         print(f"\n   correcting  neg pcp took: {time.time()-t0} sec")
 
 
+        # check again:
+        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        check.check_month( path_to_files=ds_fxd, m=m, ts_p_day=ts_per_day )
+
         # ____________ aggregate to 3hr monthly files __________
         print(f"\n   **********************************************")
         print(f"   aggregating to monthly 3hr files: {year}-{str(m).zfill(2)}")
@@ -130,6 +135,9 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
             print(f" input data already has 3hr timestep!")
             ds3hr = ds_fxd   #???  aggregate
 
+        # check again:
+        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
 
         # _________  remove cp  ____________
         if remove_cp:
@@ -147,6 +155,9 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
                                         )
             print(f"\n   removing cp took: {np.round(time.time()-t0,1)} sec")
 
+        # check again:
+        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
 
         # __________  save output  _______________
         # save 3hr dataset to disk:
@@ -197,13 +208,18 @@ if __name__ == '__main__':
     vars_to_correct_24hr = {'precipitation'   : 'precip_dt' }
 
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
-    noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    # noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    noise_path   = None
     drop_vars    = True
 
     print(f"\n##############################################  ")
     print(f"   Making 3-hourly corrected ICAR files for: " )
     print(f"      {model}   {scenario}   {year}         \n")
     print(f"   remove GCM cp:           {remove_cp}       ")
+    if noise_path is not None:
+        print(f"   and adding noise from:   {noise_path}       ")
+    else:
+        print(f" !  NOT adding noise !!! ")
     print(f"   drop unwanted variables: {drop_vars}       ")
     print(f"##############################################  \n")
 
@@ -211,7 +227,7 @@ if __name__ == '__main__':
     try:
         ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(10).zfill(2)}*.nc")
     except:  # if we don;t have month 10 (2005 / 2050 at end of period)
-        ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(1).zfill(2)}*.nc")
+        ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-*.nc")  # {str(1).zfill(2)}
     # print(f"  input timestep is {int(24/ts_per_day)} hr")
 
     if ts_per_day is not None:

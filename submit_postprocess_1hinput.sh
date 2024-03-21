@@ -4,7 +4,7 @@
 #PBS -A P48500028
 #PBS -q casper
 #PBS -N PP_Array
-#PBS -J 0-55:1
+#PBS -J 35-36:1
 #PBS -o job_output/array_1h.out
 #PBS -j oe
 
@@ -33,6 +33,7 @@ conda activate npl
 
 # ____________   Set arguments: (year = PBS_array_index) -_______________
 path_in=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_out
+# path_in=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_out/tst_CMCC
 
 # path_out=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_3h_test
 path_out=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full
@@ -50,7 +51,7 @@ model=CMCC-CM2-SR5
 # # #   hist needs 55 jobs, sspXX_2004 needs 0-46, sspXX_2049 needs 0-50!  # # #
 # allScens=(hist ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
 # allScens=(hist ssp370_2004 ssp370_2049 ssp245_2004 ssp245_2049 )
-allScens=( ssp245_2004 ssp245_2049 )
+allScens=(  ssp245_2049 )
 # allScens=(ssp245_2049 )
 # allScens=(ssp585_2049 )
 # allScens=(ssp370_2049)
@@ -80,13 +81,15 @@ for scen in ${allScens[@]}; do
     echo "Launching yearly 24hr & 3hr file correction for $model $scen ${year}"
     echo " "
 
-    # # # # Launch the 24h file script:
-    # mkdir -p job_output_daily/${model}_${scen} #_${JOBID}
-    # python -u main_24hr.py $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
+    # # # Launch the 24h file script:
+    mkdir -p job_output_daily/${model}_${scen} #_${JOBID}
+    python -u main_24hr.py $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
+
+    # echo " starting 3h"
 
     # # # Launch the 3h file script:
     mkdir -p job_output_3hr/${model}_${scen} #_${JOBID}
-    python -u main_3hr.py  $path_in $path_out $year $model $scen $remove_cp $GCM_cp_path #>& job_output_3hr/__${model}_${scen}/${year}
+    python -u main_3hr.py  $path_in $path_out $year $model $scen $remove_cp $GCM_cp_path >& job_output_3hr/${model}_${scen}/${year}
 
 
     echo " "

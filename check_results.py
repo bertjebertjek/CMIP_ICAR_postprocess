@@ -12,9 +12,10 @@
 #
 # To be run after main_Xhr.py /sumit_postprocess_{X}hinput.sh
 #
-# Usage:
-#   - $ python check_results.py [path_out OPTIONAL] [model OPTIONAL] [scenario OPTIONAL]
-#   - BUT: either give no arguments, only path_out, or all 3 !
+# Usage: (python check_results.py --help)
+#   - $ python check_results.py [-t dt OPTIONAL]  [model OPTIONAL] [scenario OPTIONAL] [path_out OPTIONAL]
+#   - -t = 3hr or 24hr
+#   - BUT: if you specify a scenario, also specify model
 #   - when no arguments are given, all subdirs in the default
 #       path_out=/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full will be checked.
 #
@@ -43,12 +44,14 @@ import argparse
 def process_command_line():
     '''Parse the commandline'''
     parser = argparse.ArgumentParser(description='remove GCM convective precip, add noise')
-    parser.add_argument('path_out', nargs='?',   help='path to input files (should have [model_scen] as subdirs)')
     # parser.add_argument('path_out',   help='path to write to')
     # parser.add_argument('year',      help='year to process')
-    parser.add_argument('model',    nargs='?',  help='model')
-    parser.add_argument('scenario',  nargs='?', help='scenario to process; one of hist, sspXXX_2004, sspXXX_2049')
-    # parser.add_argument('dt',        help="time step of input ICAR data, either 'daily' or '3hr' ")
+    parser.add_argument('model',     nargs='?', default=None, type=str, help='model')
+    parser.add_argument('scenario',  nargs='?', default=None, help='scenario to process; one of hist, sspXXX_2004, sspXXX_2049')
+    parser.add_argument('path_out', nargs='?',
+                        default="/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full",
+                        help='path to files (should have [model_scen] as subdirs)')
+    parser.add_argument('-t',    default=None,    help="time resolution to check, either '3hr' or '24hr' ")
 
     return parser.parse_args()
 
@@ -165,6 +168,9 @@ def check_month(path_to_files,
     # if not err: print(f"   no errors found in month {m}")
 
 
+
+
+
 #################################
 #           Main
 #################################
@@ -172,21 +178,21 @@ if __name__ == '__main__':
 
     # process command line: arguments path_out, model , scenario are optional
     args = process_command_line()
-    if len(sys.argv) > 1:
-        path_out  = args.path_out
-        if len(sys.argv) > 2:
-            model    = args.model
-            scenario = args.scenario
-            # print(f" sysargv: {len(sys.argv)} ; {model} {scenario}")
-        else:
-            model     = None
-            scenario  = None
-    else:
-        path_out  = "/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full"
-        # could also set default in argparse.process_comand_line()
+    # print(args)
+    model       = args.model     # default=None
+    scenario    = args.scenario  # default=None
+    path_out    = args.path_out  # default="/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full"
+    t           = args.t
 
-    if model is not None:
+
+
+
+    if model is not None and scenario is not None:
         dirs=[f"{path_out}/{model}_{scenario}"]
+    elif model is not None and scenario is None:
+        # dirs=[]
+        # dirs.extend( f"{path_out}/{model}_{s}")
+        dirs = sorted(glob.glob(f"{path_out}/{model}_*"))
     else:
         # get a list of all model_scenario directories in path:
         dirs = sorted(glob.glob(f"{path_out}/*"))
@@ -194,138 +200,111 @@ if __name__ == '__main__':
 
     # _________  Print general info: __________
     print(f"\n#######################################################################")
-    print(f"#   checking results in {path_out} ")
+    print(f"#   checking {t} results in {path_out} ")
     print(f"#\n#   for model/scen: ")
     for ms in dirs: print(f"#      {ms.split('/')[-1]} ")
     print(f"#\n#######################################################################\n")
 
 
     # _________  check monthly 3hr results: __________
-    print(f"\n**********   checking 3hr monthly results  ***************  ")
-    for modscen in dirs:
+    if t is None or t=='3hr':
+        print(f"\n**********   checking 3hr monthly results  ***************  ")
+        for modscen in dirs:
 
-        print("\n", modscen.split('/')[-1])
+            if modscen[:4]=="old_": continue
 
-        if modscen[-5:] == "_hist":
-            y1=1950; y2=2005
-        elif modscen[-5:] == "_2004":
-            y1=2005; y2=2050
-        elif modscen[-5:] == "_2049":
-            y1=2050; y2=2099
+            print("\n", modscen.split('/')[-1])
+
+            if modscen[-5:] == "_hist":
+                y1=1950; y2=2005
+            elif modscen[-5:] == "_2004":
+                y1=2005; y2=2050
+            elif modscen[-5:] == "_2049":
+                y1=2050; y2=2099
 
 
-        # # #   file characteristics to check for (timestep is derived from data)
-        n_dims =3 ; n_coords=3 ;n_data_vars=21-14 # default-len(vars_to_drop) (in remove_cp.py)
+            # # #   file characteristics to check for (timestep is derived from data)
+            n_dims =3 ; n_coords=3 ;n_data_vars=21-14 # default-len(vars_to_drop) (in remove_cp.py)
 
-        # determine timestep (nr of timesteps per day): (could just harcode?)
-        ts_per_day = determine_time_step(f"{modscen}/3hr/icar_*_{y1}-{str(10).zfill(2)}*.nc",
-                                         print_results=False
-                                         )
-        if not ts_per_day==8: print(f"\n ! ! ! ts_per_day={ts_per_day} ! ! !\n")
+            # determine timestep (nr of timesteps per day): (could just harcode?)
+            ts_per_day = determine_time_step(f"{modscen}/3hr/icar_*_{y1}-{str(10).zfill(2)}*.nc",
+                                            print_results=False
+                                            )
+            if not ts_per_day==8: print(f"\n ! ! ! ts_per_day={ts_per_day} ! ! !\n")
 
-        for year in range(y1, y2+1):
-            # set start and end month to check based on year and scenario:
-            m_start=1 ; m_end=13
-            if modscen[-5:] == "_hist" and year==2005:
-                m_end=10
-            elif modscen[-5:] == "_2004" and year==2005:
-                m_start=10
-            elif modscen[-5:] == "_2004" and year==2050:
-                m_end=10
-            elif modscen[-5:] == "_2049" and year==2050:
-                m_start=10
-            elif modscen[-5:] == "_2049" and year==2099:
-                m_end=11  # 2099-12 often misses last day.
-            else:
+            for year in range(y1, y2+1):
+                # set start and end month to check based on year and scenario:
                 m_start=1 ; m_end=13
+                if modscen[-5:] == "_hist" and year==2005:
+                    m_end=10
+                elif modscen[-5:] == "_2004" and year==2005:
+                    m_start=10
+                elif modscen[-5:] == "_2004" and year==2050:
+                    m_end=10
+                elif modscen[-5:] == "_2049" and year==2050:
+                    m_start=10
+                elif modscen[-5:] == "_2049" and year==2099:
+                    m_end=11  # 2099-12 often misses last day.
+                else:
+                    m_start=1 ; m_end=13
 
-            for m in range(m_start,m_end):
-                path_m = f"{modscen}/3hr/icar_*_{year}-{str(m).zfill(2)}*.nc"
+                for m in range(m_start,m_end):
+                    path_m = f"{modscen}/3hr/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
-                check_month(path_m, m, year,
+                    check_month(path_m, m, year,
+                                ts_p_day    = ts_per_day,
+                                n_dims      = n_dims,
+                                n_coords    = n_coords,
+                                n_data_vars = n_data_vars
+                                )
+
+    if t is None or t=='24hr':
+        # _________  check Yearly 24hr results: __________
+        print(f"\n**********   checking 24hr yearly results  ***************")
+        for modscen in dirs:
+
+            print("\n", modscen.split('/')[-1])
+
+            if modscen[-5:] == "_hist":
+                y1=1950; y2=2005
+            elif modscen[-5:] == "_2004":
+                y1=2005; y2=2050
+            elif modscen[-5:] == "_2049":
+                y1=2050; y2=2099
+            elif modscen[-5:] == "2005_2050":
+                y1=2005; y2=2050
+            elif modscen[-5:] == "2050_2099":
+                y1=2050; y2=2099
+
+
+            # # #   file characteristics to check for (timestep is derived from data)
+            n_dims =3 ; n_coords=3 ;n_data_vars=4 # default-len(vars_to_drop) (in remove_cp.py)
+
+            if len(glob.glob(f"{modscen}/daily/*"))==0:
+                print(f"  No daily files found for {modscen}")
+                continue
+
+            # determine timestep (nr of timesteps per day): (could just harcode?)
+            if len(glob.glob(f"{modscen}/daily/icar_*_{y1}.nc"))>0:
+                file_ts=f"{modscen}/daily/icar_*_{y1}.nc"
+                prefix="icar"
+            elif len(glob.glob(f"{modscen}/daily/ICAR_*_{y1}.nc"))>0:
+                file_ts=f"{modscen}/daily/ICAR_*_{y1}.nc"
+                prefix="ICAR"
+
+            ts_per_day = determine_time_step(file_ts,
+                                            print_results=False
+                                            )
+            if not ts_per_day==1: print(f"\n ! ! ! ts_per_day={ts_per_day} ! ! !\n")
+
+            for year in range(y1, y2+1):
+                # print(f"- - -  {year}  - - -")
+                path_y = f"{modscen}/daily/{prefix}_*_{year}.nc"
+
+                check_year( path_y, #glob.glob(path_y)[0],
+                            year,
                             ts_p_day    = ts_per_day,
                             n_dims      = n_dims,
                             n_coords    = n_coords,
                             n_data_vars = n_data_vars
                             )
-
-
-    # _________  check Yearly 24hr results: __________
-    print(f"\n**********   checking 24hr yearly results  ***************")
-    for modscen in dirs:
-
-        print("\n", modscen.split('/')[-1])
-
-        if modscen[-5:] == "_hist":
-            y1=1950; y2=2005
-        elif modscen[-5:] == "_2004":
-            y1=2005; y2=2050
-        elif modscen[-5:] == "_2049":
-            y1=2050; y2=2099
-        elif modscen[-5:] == "2005_2050":
-            y1=2005; y2=2050
-        elif modscen[-5:] == "2050_2099":
-            y1=2050; y2=2099
-
-
-        # # #   file characteristics to check for (timestep is derived from data)
-        n_dims =3 ; n_coords=3 ;n_data_vars=4 # default-len(vars_to_drop) (in remove_cp.py)
-
-        # determine timestep (nr of timesteps per day): (could just harcode?)
-        if len(glob.glob(f"{modscen}/daily/icar_*_{y1}.nc"))>0:
-            file_ts=f"{modscen}/daily/icar_*_{y1}.nc"
-        elif len(glob.glob(f"{modscen}/daily/ICAR_*_{y1}.nc"))>0:
-            file_ts=f"{modscen}/daily/ICAR_*_{y1}.nc"
-
-        ts_per_day = determine_time_step(file_ts,
-                                         print_results=False
-                                         )
-        if not ts_per_day==1: print(f"\n ! ! ! ts_per_day={ts_per_day} ! ! !\n")
-
-        for year in range(y1, y2+1):
-            # print(f"- - -  {year}  - - -")
-            path_y = f"{modscen}/daily/ICAR_*_{year}.nc"
-
-            check_year( path_y, #glob.glob(path_y)[0],
-                        year,
-                        ts_p_day    = ts_per_day,
-                        n_dims      = n_dims,
-                        n_coords    = n_coords,
-                        n_data_vars = n_data_vars
-                        )
-
-##################### old  ########################
-
-
-    # scen    = args.scenario.split('_')[0]  # drop the year from sspXXX_year
-    # model    = args.model
-    # scenario = args.scenario
-    # year     = int(args.year)
-
-
-    # if scenario.split('_')[0]=="hist":
-    #     y1=1950; y2=2005
-    # elif scenario.split('_')[-1]=="2004":
-    #     y1=2005; y2=2050
-    # elif scenario.split('_')[-1]=="2049":
-    #     y1=2050; y2=2099
-
-    # # # #   file characteristics to check for (timestep is derived from data)
-    # n_dims =3 ; n_coords=3 ;n_data_vars=21-14 # default-len(vars_to_drop) (in remove_cp.py)
-
-    # # determine timestep (nr of timesteps per day):
-    # ts_per_day = determine_time_step(f"{path_out}/{model}_{scenario}/3hr/icar_*_{y1}-{str(10).zfill(2)}*.nc")
-
-    # # check monthly 3hr results:
-    # print(f"\n**********   checking monthly results  ***************\n")
-    # for year in range(y1, y2+1):
-    #     print(f"- - -  {year}  - - -")
-    #     for m in range(1,13):
-    #         path_m = f"{path_out}/{model}_{scenario}/3hr/icar_*_{year}-{str(m).zfill(2)}*.nc"
-    #         # print(path_m)
-    #         check_month(path_m, m,
-    #                     ts_p_day    = ts_per_day,
-    #                     n_dims      = n_dims,
-    #                     n_coords    = n_coords,
-    #                     n_data_vars = n_data_vars
-    #                     )

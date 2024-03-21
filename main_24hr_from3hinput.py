@@ -217,7 +217,8 @@ if __name__ == '__main__':
 
     # # #  Additional settings (might become arguments )  # # #
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
-    noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    # noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    noise_path   = None
     drop_vars    = False
     cor_neg_pcp  = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
 
@@ -240,6 +241,10 @@ if __name__ == '__main__':
     print(f"   Making daily corrected ICAR files for: " )
     print(f"      {model}   {scenario}   {year}      \n")
     print(f"   remove GCM cp:           {remove_cp}    ")
+    if noise_path is not None:
+        print(f"   and adding noise from:   {noise_path}       ")
+    else:
+        print(f" !  NOT adding noise !!! ")
     # print(f"   drop unwanted variables: {drop_vars}    ")
     print(f"   daily file to be corrected:\n      {file_day_in}    ")
     print(f"#######################################  \n")

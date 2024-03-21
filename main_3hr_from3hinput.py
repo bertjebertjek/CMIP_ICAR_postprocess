@@ -199,13 +199,18 @@ if __name__ == '__main__':
     vars_to_correct_24hr = {'precipitation'   : 'precip_dt' }
 
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
-    noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    # noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    noise_path   = None
     drop_vars    = True
 
     print(f"\n##############################################  ")
     print(f"   Making 3-hourly corrected ICAR files for: " )
     print(f"      {model}   {scenario}   {year}         \n")
     print(f"   remove GCM cp:           {remove_cp}       ")
+    if noise_path is not None:
+        print(f"   and adding noise from:   {noise_path}       ")
+    else:
+        print(f" !  NOT adding noise !!! ")
     print(f"   drop unwanted variables: {drop_vars}       ")
     print(f"##############################################  \n")
 

@@ -96,7 +96,8 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     # for legacy code?
     dt='3hr'
 
-
+    ## N.B> Noise is only added if Noise path is not None
+    if noise_path is not None: print(f"\n   Adding noise from {noise_path} \n")
     # NOISE_u = xr.open_dataset(f"{noise_path}" )
     u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
 
@@ -150,23 +151,21 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     print(f"   timestep is {dt}, so multiplying GCM-cp by 60*60*3")
 
     #----------------- add noise -----------------
-    noise_val= 0.01
-    # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
-    t=len(ds_in.time)
-    # if dt=="daily":
-    #     noise_arr = noise_val * u_noise[(int(year) - 1950) * t : (int(year)-1950+1) * t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-    # elif dt=="3hr":
-    noise_arr = noise_val * u_noise[0 : t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-        # need 8 times bigger noise array, so we repeat per year.... not ideal?
+    if noise_path is not None:
+        noise_val= 0.01
+        # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
+        t=len(ds_in.time)
 
-    # if(  (int(args.year)-1950+1) *t > u_noise.shape[0] ):
-    #      noise_arr = noise_val * u_noise[(int(args.year) - 1950) * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-    # else:
-    #     noise_arr = noise_val * u_noise[(int(args.year) - 1950)  * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
+        noise_arr = noise_val * u_noise[0 : t , :dsP_out.shape[1], :dsP_out.shape[2] ]
+            # need 8 times bigger noise array, so we repeat per year.... not ideal?
 
+        # if(  (int(args.year)-1950+1) *t > u_noise.shape[0] ):
+        #      noise_arr = noise_val * u_noise[(int(args.year) - 1950) * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
+        # else:
+        #     noise_arr = noise_val * u_noise[(int(args.year) - 1950)  * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
 
-    # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
-    dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
+        # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
+        dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
 
     # # somehow subtracting the GCM cp does introduce negative values again, so we make sure those are set to zero: (this was probably because we subtracted 60*60*24 iso 60*60*6)?
     dsP_out=xr.where(dsP_out<0,0, dsP_out)  # not in all daily data! only files processed after November 1st 2023
@@ -207,8 +206,9 @@ def remove_24hr_cp(ds_in, m, year, model, scen,
                   ):
 
     #______ noise ______
-    NOISE_u = xr.open_dataset(f"{noise_path}" )
-    u_noise = NOISE_u.uniform_noise  #.load() # 55000 x 480 x480
+    ## N.B> Noise is only added if Noise path is not None
+    if noise_path is not None: print(f"\n   Adding noise from {noise_path} \n")
+    u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
 
 
 
@@ -269,15 +269,13 @@ def remove_24hr_cp(ds_in, m, year, model, scen,
 
     # print(dsP_out)
     #----------------- add noise -----------------
-    noise_val= 0.01
-    # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
-    t=len(ds_in.time)
-
-    noise_arr = noise_val * u_noise[(int(year) - 1950) * t : (int(year)-1950+1) * t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-
-
-    # # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
-    dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
+    if noise_path is not None:
+        noise_val= 0.01
+        # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
+        t=len(ds_in.time)
+        noise_arr = noise_val * u_noise[(int(year) - 1950) * t : (int(year)-1950+1) * t , :dsP_out.shape[1], :dsP_out.shape[2] ]
+        # # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
+        dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
 
     # # somehow subtracting the GCM cp does introduce negative values again, so we make sure those are set to zero: (this was probably because we subtracted 60*60*24 iso 60*60*6)?
     dsP_out=xr.where(dsP_out<0,0, dsP_out)  # not in all daily data! only files processed after November 1st 2023
