@@ -6,6 +6,8 @@
 #    - requires GCM cp regridded to ICAR grid (in GCM path)
 #    -
 #
+# ToDO:
+#    - not properly tested for CMIP5 24hr (GCM path is different)
 #
 # Usage:
 #   - can be used stand-alone, but intended for use from main.py
@@ -90,6 +92,7 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
                   noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
                   drop_vars=False,
+                #   CMIP=CMIP,
                   vars_to_drop=vars_to_drop
                   ):
 
@@ -97,26 +100,41 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     dt='3hr'
 
     ## N.B> Noise is only added if Noise path is not None
-    if noise_path is not None: print(f"\n   Adding noise from {noise_path} \n")
-    # NOISE_u = xr.open_dataset(f"{noise_path}" )
-    u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
+    if noise_path is not None:
+        print(f"\n   Adding noise from {noise_path} \n")
+        u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
 
 
     #___________ GCM cp ____________
-    yr_10 = myround(year, base=10)  # the decade in which the year falls
-    ds_cp1  = xr.open_mfdataset(
-        f'{GCM_path}/3hr/{scen}/{model}_cp_3hr_Igrid_{yr_10}-*.nc'
-        )
-    if year==2019: # somehow the year 2019 is spread over the files 2010-2019 and 2020-2029, so:
-        print(f"   merging 2019 from 2 files...")
-        yr_10 = myround(year+1, base=10)  # the (next) decade
-        ds_cp2 = xr.open_mfdataset(
-            f'{GCM_path}/3hr/{scen}/{model}_cp_3hr_Igrid_{yr_10}-*.nc'
+    print("GCM_path[-4:]: ", GCM_path[-4:], " scen=", scen)
+    # if GCM_path[-4:] == "_3hr":   # CMIP5
+    if "CMIP5" in GCM_path:
+    # if CMIP == "CMIP5":
+        if scen=="historical" or scen=="historical/3hr": # no historical subfolder, in rcp45/85
+            print(f'historical; opening  "{GCM_path}/rcp45/{model}/{model}*_cp_3hr_Igrid_{year}.nc')
+            ds_convective_p= xr.open_mfdataset(
+                f"{GCM_path}/rcp45/{model}/{model}*_cp_3hr_Igrid_{year}.nc"
             )
-        ds_convective_p = xr.concat( [ds_cp1, ds_cp2], dim='time')
-        print(f"  2019 length: {len(ds_convective_p.time.sel(time='2019').values)}")
-    else:
-        ds_convective_p = ds_cp1
+        else:
+            print(f' opening  "{GCM_path}/{scen}/{model}/{model}*_cp_3hr_Igrid_{year}.nc')
+            ds_convective_p= xr.open_mfdataset(
+                f"{GCM_path}/{scen}/{model}/{model}*_cp_3hr_Igrid_{year}.nc"
+            )
+    else:  #CMIP6
+        yr_10 = myround(year, base=10)  # the decade in which the year falls
+        ds_cp1  = xr.open_mfdataset(
+            f'{GCM_path}/3hr/{scen}/{model}*_cp_3hr_Igrid_{yr_10}-*.nc'
+            )
+        if year==2019 and ("ssp" in scen or scen=="hist"): # somehow the year 2019 is spread over the files 2010-2019 and 2020-2029 (CMIP6 only), so:
+            print(f"   merging 2019 from 2 files...")
+            yr_10 = myround(year+1, base=10)  # the (next) decade
+            ds_cp2 = xr.open_mfdataset(
+                f'{GCM_path}/3hr/{scen}/{model}*_cp_3hr_Igrid_{yr_10}-*.nc'
+                )
+            ds_convective_p = xr.concat( [ds_cp1, ds_cp2], dim='time')
+            print(f"  2019 length: {len(ds_convective_p.time.sel(time='2019').values)}")
+        else:
+            ds_convective_p = ds_cp1
 
     ds_convective_p = ds_convective_p.sel(time=ds_convective_p.time.dt.year==int(year))
 
@@ -153,26 +171,19 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     #----------------- add noise -----------------
     if noise_path is not None:
         noise_val= 0.01
-        # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
         t=len(ds_in.time)
-
         noise_arr = noise_val * u_noise[0 : t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-            # need 8 times bigger noise array, so we repeat per year.... not ideal?
-
-        # if(  (int(args.year)-1950+1) *t > u_noise.shape[0] ):
-        #      noise_arr = noise_val * u_noise[(int(args.year) - 1950) * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-        # else:
-        #     noise_arr = noise_val * u_noise[(int(args.year) - 1950)  * t : (int(args.year)-1950+1) *t , :dsP_out.shape[1], :dsP_out.shape[2] ]
 
         # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
         dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
+        print("  Noise added! ")
 
     # # somehow subtracting the GCM cp does introduce negative values again, so we make sure those are set to zero: (this was probably because we subtracted 60*60*24 iso 60*60*6)?
     dsP_out=xr.where(dsP_out<0,0, dsP_out)  # not in all daily data! only files processed after November 1st 2023
 
     try:
-        print("   Min ICAR (out) prec, after adding noise: ", np.nanmin(dsP_out.values)   ," kg/m-2"   )
-        print("   Max ICAR (out) prec, after adding noise: ", np.nanmax(dsP_out.values)   ," kg/m-2"   )
+        print("   Min ICAR (out) prec: ", np.nanmin(dsP_out.values)   ," kg/m-2"   )
+        print("   Max ICAR (out) prec: ", np.nanmax(dsP_out.values)   ," kg/m-2"   )
     except:
         print("   Max prec slice gives error! ")
 
@@ -183,9 +194,6 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     # ------- add corrected precip to dataset ----------
     ds_in[precip_var].values = dsP_out.values
     ds_in[precip_var].attrs["processing_note3"] = "Removed GCM's convective precipitation from total precipitation"
-
-    # print("   Min ICAR (out) prec: ", np.nanmin(ds_in[precip_var].values) ," kg/m-2"   )
-    # print("   Max ICAR (out) prec: ", np.nanmax(ds_in[precip_var].values) ," kg/m-2"   )
 
     # ----- return result  -----
     return ds_in
@@ -198,7 +206,7 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
 ##############################
 #  remove convective pcp 24hr
 ##############################
-def remove_24hr_cp(ds_in, m, year, model, scen,
+def remove_24hr_cp(ds_in, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
                   noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
                   drop_vars=False,
@@ -207,8 +215,9 @@ def remove_24hr_cp(ds_in, m, year, model, scen,
 
     #______ noise ______
     ## N.B> Noise is only added if Noise path is not None
-    if noise_path is not None: print(f"\n   Adding noise from {noise_path} \n")
-    u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
+    if noise_path is not None:
+        print(f"\n   Adding noise from {noise_path} \n")
+        u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
 
 
 
@@ -236,15 +245,17 @@ def remove_24hr_cp(ds_in, m, year, model, scen,
     elif "CMIP5" in GCM_path: # one file per scen
         # # CMIP5 DAILY :
         if scen == 'rcp45' and  model=='MRI-CGCM3':
-            GCM_path='/glade/scratch/bkruyt/CMIP5/GCM_Igrid/daily/rcp45' # this one was missing and is on my scratch iso Ryan's
+            GCM_path='/glade/derecho/scratch/bkruyt/CMIP5/GCM_Igrid_3hr/rcp45' # this one was missing and is on my scratch iso Ryan's
         else:
             GCM_path='/glade/campaign/ral/hap/currierw/icar/output'
-        print(f"   opening GCM cp from: {GCM_path}/daily/{ model}_bias_corr_convective_prec_regrid_{scen}_1950-2099.nc")
+        print(f"   opening GCM cp from: {GCM_path}" #/daily/{ model}_bias_corr_convective_prec_regrid_{scen}_1950-2099.nc"
+              )
         scen_temp="rcp85" if scen=="historical" else scen
         print(f"  scen_temp={scen_temp}")
 
         ds_convective_p=xr.open_dataset(
-                f'{GCM_path}/daily/{model}_bias_corr_convective_prec_regrid_{scen_temp}_1950-2099.nc'
+                # f'{GCM_path}/daily/{model}_bias_corr_convective_prec_regrid_{scen_temp}_1950-2099.nc'
+                f'{GCM_path}/{model}_bias_corr_convective_prec_regrid_{scen_temp}_1950-2099.nc'
                 ) # e.g.  MRI-CGCM3_bias_corr_convective_prec_regrid_rcp85_1950-2099.nc
         if "y" in ds_convective_p.dims:
             ds_convective_p=ds_convective_p.rename({"y":"lat_y", "x":"lon_x"})
@@ -318,12 +329,13 @@ if __name__=="__main__":
 
     # process command line
     args = process_command_line()  # dt should be argument!!
-    path_in  = args.path_in
-    path_out  = args.path_out
-    year     = int(args.year)
-    model    = args.model
-    scenario = args.scenario
-    scen    = args.scenario.split('_')[0]  # drop the year from sspXXX_year
+    path_in     = args.path_in
+    path_out    = args.path_out
+    year        = int(args.year)
+    model       = args.model
+    scenario    = args.scenario
+    scen        = args.scenario.split('_')[0]  # drop the year from sspXXX_year
+    # CMIP        = args.CMIP
 
     # Not tested in stand-alone:
     ds_in = xr.open_mfdataset( f"{path_in}/{model}_{scenario}/{year}/*.nc")

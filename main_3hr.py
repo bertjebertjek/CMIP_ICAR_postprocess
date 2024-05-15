@@ -56,6 +56,7 @@ def process_command_line():
     parser.add_argument('scenario',         help='scenario to process; one of hist, sspXXX_2004, sspXXX_2049')
     parser.add_argument('remove_cp',        help='remove GCM cp from ICAR data, requires GCM_cp_path') # bool
     parser.add_argument('GCM_cp_path',      help='path with the GCM cp on ICAR grid')
+    # parser.add_argument('CMIP',             help='CMIP5 or CMIP6' )
 
     return parser.parse_args()
 
@@ -74,7 +75,7 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         m_start = 10
     elif year==2050 and scenario[:3]=='ssp' and scenario[-5:]=='_2049':
         m_start = 10
-    elif year==2050 and scenario[:3]=='rcp' and scenario[-5:]=='_2050':
+    elif year==2050 and scenario[:3]=='rcp' and scenario[-5:]=='_2100':
         m_start = 10
     else:
         m_start = 1
@@ -132,7 +133,7 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         if int(24/ts_per_day)==1 :
             ds3hr = change_temporal_res.make_3h_monthly_file( ds_fxd ) #, directory_3hr=path_out_3hr)
         elif int(24/ts_per_day)==3 :  # if we already have 3hourly data, just aggregate to monthly?
-            print(f" input data already has 3hr timestep!")
+            print(f"      input data already has 3hr timestep!")
             ds3hr = ds_fxd   #???  aggregate
 
         # check again:
@@ -155,9 +156,9 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
                                         )
             print(f"\n   removing cp took: {np.round(time.time()-t0,1)} sec")
 
-        # check again:
-        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
-        check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
+        # # check again:
+        # print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        # check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
 
         # __________  save output  _______________
         # save 3hr dataset to disk:
@@ -196,7 +197,10 @@ if __name__ == '__main__':
     remove_cp       = True if args.remove_cp=="True" else False
     GCM_path        = args.GCM_cp_path if args.remove_cp=="True" else None
 
-
+    # CMIP            = args.CMIP
+    # if CMIP=="CMIP5":
+    #     print(" \n ! ! !   Not tested for CMIP5 yet, use 3hr inputs !!! \n Stopping.")
+    #     sys.exit()
 
     ########          correct negative variables          ########
     vars_to_correct_3hr = {'precipitation'   : 'precip_dt',

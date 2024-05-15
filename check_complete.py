@@ -5,7 +5,7 @@
 #   - missing time (completeness)
 #   - missing variables
 #   - missing dims, coordinates
-#
+#   - NaNs in all data_vars (added 2024 04)
 #
 #
 #  Bert Kruyt NCAR RAL 2024
@@ -15,37 +15,12 @@ import pandas as pd
 from datetime import datetime, timedelta
 import xarray as xr
 import numpy as np
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as animation
-# import matplotlib
-# import matplotlib.pylab as pylab
-# import matplotlib.patches as patches
-# import seaborn as sns
 import glob
 import os
 import multiprocessing as mp
 import sys
 import cftime
 import argparse
-
-# params = {
-#     "legend.fontsize": "x-large",  # ‘xx-small’, ‘x-small’, ‘small’, ‘medium’, ‘large’, ‘x-large’, ‘xx-large’
-#     #           'figure.figsize': (15, 5),
-#     "axes.labelsize": "x-large",
-#     "axes.titlesize": 18,  # 'x-large', #(=14)
-#     "figure.titlesize":22,
-#     "xtick.labelsize": "x-large",
-#     "ytick.labelsize": "x-large",
-# }
-# matplotlib.pylab.rcParams.update(params)
-# pylab.rcParams["pcolor.shading"] = "auto"
-# import warnings
-# # warnings.filterwarnings( "ignore", module = "matplotlib\..*" )
-# warnings.filterwarnings("ignore")
-# # adding scripts to the system path
-# sys.path.insert(0, '../scripts/')
-# pylab.rcParams["animation.embed_limit"] = 128*8
-# import itertools
 
 
 #################################
@@ -120,11 +95,17 @@ def check_month(path_to_files,
     #     print(f"   cannot open {path_to_files}")
     #     return
 
+    # _____________ check for NaNs ______________
+    for v in ds.data_vars:
+        count = np.sum( ds[v].isnull().values )
+        if count > 0:
+            print( f"   !!! var {v} has {count} NaNs   !!!" )
 
 
-    # Check length (time)
+
+    # _____________ Check length (time)  _____________
     if m in [1,3,5,7,8,10,12] and len(ds.time) < 31*ts_p_day: # January, March, May, July, August, October, and December
-        print(f"  month {str(m).zfill(2)} is short")
+        print(f"   month {str(m).zfill(2)} is short")
         err=True
     elif m in [4,6,9,11] and len(ds.time) < 30*ts_p_day:
         print(f"   month {str(m).zfill(2)} is short")

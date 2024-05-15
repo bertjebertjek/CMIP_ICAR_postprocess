@@ -85,24 +85,30 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
 
     # __________  check files for completeness  ______
     print(f"\n**********************************************")
+    if "CMIP6" in path_in:
+        path_in_month = f"{path_in}/{model}_{scenario}"
+    else:
+        path_in_month = f"{path_in}/{model}_{scenario}/3hr"
+        path_in_year = f"{path_in}/{model}_{scenario}/daily"
+
     for m in range(1,13):
-        path_m = f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m).zfill(2)}*.nc"
+            # path_m = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
         print(f"   checking {year}-{str(m).zfill(2)}")
-        check_result = check.check_month( path_to_files=path_m, m=m, ts_p_day=ts_per_day )
+        check_result = check.check_month(
+            path_to_files = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc",
+            m = m, ts_p_day = ts_per_day
+            )
 
         # ________ interpolate / fill missing timesteps  __________
         # if check_result == not None:
             #   ... call interpolation routine?
-            # .......
-
-    # # # #    END MONTH LOOP   # # # # #
 
 
     # ____________       corr neg pcp      _____________
     #
     #     make timestep precip vars  &  fix neg precip (should be separate functions, so we can turn them on/off indiv.)
-    # __________________________________________________
+
     if cor_neg_pcp:
         print(f"\n   **********************************************")
         print(f"   fixing neg pcp  for {year} ")
@@ -110,23 +116,23 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
 
         # find next month's file (needed to calculate timestep pcp (diff))
         try:
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{path_in_month}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
         except:
                 nextmonth_file_in=None  # should catch all fringe cases, ie 2005 in hist, 2050 in sspXXX_2004
         print( "   nextmonth_file_in ", nextmonth_file_in )
 
-        # call the correction functions
-        path_y = f"{path_in}/{model}_{scenario}/icar_*_{year}-*.nc"
-        ds_fxd = fix.open_and_remove_neg_pcp(path_y,
-                                            nextmonth_file_in,
-                                            vars_to_correct=vars_to_correct_24hr
-                                            )
+        # call the correction functions (N.B. Takes 1h or 3h input!)
+        ds_fxd = fix.open_and_remove_neg_pcp(
+            f"{path_in_month}/icar_*_{year}-*.nc",
+            nextmonth_file_in,
+            vars_to_correct=vars_to_correct_24hr
+            )
         print(f"\n   correcting  neg pcp took: {np.round(time.time()-t0,1)} sec")
     else:
          # in this case we should still disaggregate pcp!!
          print("   NOT IMPLEMENTED YET, Stopping")
          sys.exit()
-        #  ds_fxd = xr.open_mfdataset( path_y )   # ???? Not tested (or recommended)
+
 
 
     # ____________ aggregate to 24hr yearly files __________
@@ -160,10 +166,10 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
     # _________  remove cp  ____________
     if remove_cp:
         print(f"\n   **********************************************")
-        print( f'   removing GCM cp  {year}-{str(m).zfill(2)}')
+        print( f'   removing GCM cp  {year}')
         t0 =time.time()
         ds24hr = cp.remove_24hr_cp( ds_in       = ds24hr,
-                                    m           = m,
+                                    # m           = m,
                                     year        = year,
                                     model       = model,
                                     scen        = scenario.split('_')[0],
@@ -234,8 +240,13 @@ if __name__ == '__main__':
 
     # The exisiting 24hr file(s) to which we will add the corrected precip:
     # (Tmin and Tmax in this file are calculated from 1h, and therefore better)
-    file_day_in = f"{path_day_in}/{model}_{scenario}/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
+    if "CMIP6" in path_in :
+        file_day_in = f"{path_day_in}/{model}_{scenario}/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
+    else:
+        # file_day_in = f"{path_day_in}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
+        file_day_in = f"{path_day_in}/{model}_{scenario}/yearly/icar_yearly_{model}_{scenario}_{year}.nc" # yearly files load quicker?
 
+    # todo: make a function that sets all paths
 
     print(f"\n#######################################  ")
     print(f"   Making daily corrected ICAR files for: " )
@@ -244,18 +255,26 @@ if __name__ == '__main__':
     if noise_path is not None:
         print(f"   and adding noise from:   {noise_path}       ")
     else:
-        print(f" !  NOT adding noise !!! ")
+        print(f" ")
     # print(f"   drop unwanted variables: {drop_vars}    ")
     print(f"   daily file to be corrected:\n      {file_day_in}    ")
     print(f"#######################################  \n")
 
     # determine timestep (nr of timesteps per day):
-    try:
-        files_oct = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
-        ts_per_day = check.determine_time_step(files_oct[0])
-    except:
-        files = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(1).zfill(2)}*.nc")
-        ts_per_day = check.determine_time_step(files[0])
+    if "CMIP6" in path_in :
+        try:
+            files_oct = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
+            ts_per_day = check.determine_time_step(files_oct[0])
+        except:
+            files = glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(1).zfill(2)}*.nc")
+            ts_per_day = check.determine_time_step(files[0])
+    else:
+        try:
+            files_oct = glob.glob(f"{path_in}/{model}_{scenario}/3hr/icar_*_{year}-{str(10).zfill(2)}*.nc")
+            ts_per_day = check.determine_time_step(files_oct[0])
+        except:
+            files = glob.glob(f"{path_in}/{model}_{scenario}/3hr/icar_*_{year}-{str(1).zfill(2)}*.nc")
+            ts_per_day = check.determine_time_step(files[0])
 
     if ts_per_day is not None:
         correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, year,

@@ -56,6 +56,7 @@ def process_command_line():
     parser.add_argument('scenario',         help='scenario to process; one of hist, sspXXX_2004, sspXXX_2049')
     parser.add_argument('remove_cp',        help='remove GCM cp from ICAR data, requires GCM_cp_path') # bool
     parser.add_argument('GCM_cp_path',      help='path with the GCM cp on ICAR grid')
+    parser.add_argument('CMIP',             help='CMIP5 or CMIP6' )
 
     return parser.parse_args()
 
@@ -74,7 +75,7 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         m_start = 10
     elif year==2050 and scenario[:3]=='ssp' and scenario[-5:]=='_2049':
         m_start = 10
-    elif year==2050 and scenario[:3]=='rcp' and scenario[-5:]=='_2050':
+    elif year==2050 and scenario[:3]=='rcp' and scenario[-5:]=='_2100':
         m_start = 10
     else:
         m_start = 1
@@ -82,8 +83,12 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
     for m in range(m_start,13):
         t1 = time.time()
 
-        # path_m = f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(m).zfill(2)}*.nc"
-        path_m = f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m).zfill(2)}*.nc"
+        if CMIP=="CMIP5":
+            base_path=f"{path_in}/{model}_{scenario}/3hr"
+        else:
+            base_path=f"{path_in}/{model}_{scenario}"
+
+        path_m = f"{base_path}/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
         # __________  check files for completeness  ______
         print(f"\n**********************************************")
@@ -106,10 +111,9 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         # find next month's file (needed to calculate timestep pcp (diff))
         try:
             if m<12:
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(m+1).zfill(2)}*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{base_path}/icar_*_{year}-{str(m+1).zfill(2)}*.nc"))[0]
             elif m==12:
-                # nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}/{scenario}/{str(int(year)+1)}/icar_out_{str(int(year)+1)}-01*.nc"))[0]
-                nextmonth_file_in = sorted(glob.glob(f"{path_in}/{model}_{scenario}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
+                nextmonth_file_in = sorted(glob.glob(f"{base_path}/icar_*_{str(int(year)+1)}-01*.nc"))[0]
         except:
                 nextmonth_file_in=None  # should catch all fringe cases, ie 2005 in hist, 2050 in sspXXX_2004
         print( "   nextmonth_file_in ", nextmonth_file_in )
@@ -152,12 +156,19 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
 
         # __________  save output  _______________
         # save 3hr dataset to disk:
-        file_out_3hr  = f"{path_out_3hr}/{model}_{scenario}/3hr/icar_3hr_{model}_{scenario.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
+        if CMIP=="CMIP5" and scenario[-4:]=="/3hr": # CMIP5:
+        # if scenario[-4:]=="/3hr": # CMIP5
+            scen_out = scenario[:-4]
+        else:
+            scen_out = scenario
+
+        file_out_3hr  = f"{path_out_3hr}/{model}_{scen_out}/3hr/icar_3hr_{model}_{scen_out.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
+        # file_out_3hr  = f"{path_out_3hr}/{model}_{scenario}/3hr/icar_3hr_{model}_{scenario.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
         print(f"\n   **********************************************")
         print( '   writing 3hfile to ', file_out_3hr )
 
-        if not os.path.exists(f"{path_out_3hr}/{model}_{scenario}/3hr"):
-            os.makedirs(f"{path_out_3hr}/{model}_{scenario}/3hr")
+        if not os.path.exists(f"{path_out_3hr}/{model}_{scen_out}/3hr"):
+            os.makedirs(f"{path_out_3hr}/{model}_{scen_out}/3hr")
 
         ds3hr.to_netcdf(file_out_3hr, encoding={'time'      :{'units':"days since 1900-01-01"},
                                                 'precip_dt' :{'dtype':"float32"}
@@ -186,7 +197,7 @@ if __name__ == '__main__':
     year            = int(args.year)
     remove_cp       = True if args.remove_cp=="True" else False
     GCM_path        = args.GCM_cp_path if args.remove_cp=="True" else None
-
+    CMIP            = args.CMIP
 
 
     ########          correct negative variables          ########
@@ -205,21 +216,25 @@ if __name__ == '__main__':
 
     print(f"\n##############################################  ")
     print(f"   Making 3-hourly corrected ICAR files for: " )
-    print(f"      {model}   {scenario}   {year}         \n")
+    print(f"      {model}   {scenario}   {year}   {CMIP}      \n")
     print(f"   remove GCM cp:           {remove_cp}       ")
     if noise_path is not None:
         print(f"   and adding noise from:   {noise_path}       ")
     else:
-        print(f" !  NOT adding noise !!! ")
+        print(f"")
+        # print(f" !  NOT adding noise !!! ")
     print(f"   drop unwanted variables: {drop_vars}       ")
     print(f"##############################################  \n")
 
     # determine timestep (nr of timesteps per day): (currently diagnostic only)
     try:
-        ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
+        if CMIP=="CMIP5":
+            ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/3hr/icar_*_{year}-{str(10).zfill(2)}*.nc")
+        else:
+            ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(10).zfill(2)}*.nc")
     except:  # if we don;t have month 10 (2005 / 2050 at end of period)
         ts_per_day = check.determine_time_step(f"{path_in}/{model}_{scenario}/icar_*_{year}-{str(1).zfill(2)}*.nc")
-    # print(f"  input timestep is {int(24/ts_per_day)} hr")
+    print(f"  input timestep is {int(24/ts_per_day)} hr")
 
     if ts_per_day is not None:
         correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,

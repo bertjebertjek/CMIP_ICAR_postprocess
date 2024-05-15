@@ -36,7 +36,8 @@ import sys
 #
 # !!!   N.B. settings in batch submit script!!!!
 
-neg_thrsh = -0.0001 # threshold below which negative values get interpolated (setting to 0 leads to half the data being flagged, not good.)
+# neg_thrsh = -0.0001 # threshold below which negative values get interpolated (setting to 0 leads to half the data being flagged, not good.)
+neg_thrsh = -0.01
 
 overwrite=True
 
@@ -59,7 +60,7 @@ def process_command_line():
 ##############################################################################################
 #      calculate timestep amount from cumulative variable, and correct negative values       #
 ##############################################################################################
-def correct_var(ds1, varname, varname_dt, ds2=None):
+def correct_var(ds1, varname, varname_dt, ds2=None, neg_thrsh=neg_thrsh):
     """ takes a cumulative variable and returns the timestep version of that variable without negative values"""
 
     print(f"\n   correcting negative {varname} ...")
@@ -189,6 +190,16 @@ def open_and_remove_neg_pcp(files_in, nextmonth_file_in, vars_to_correct):
             # with open(f'errors_{args.model}_{args.scenario}.txt', 'a+') as f:
                 # f.write(f"{files_in} \n")
             return
+
+        # adjust threshold for CMIP5 because somehow may zeros are flagged as negative:
+        try:
+            if "CMIP5" in files_in: neg_thrsh = neg_thrsh *100 #makes it -0.01?
+            print( f" - - - neg_thrsh = {neg_thrsh} - - -")  # debug
+
+        except:
+            print(f"   could not adjust neg_thrsh by factor 100")
+
+
     elif isinstance( files_in, xr.core.dataset.Dataset):
         print(f"   input is ds with {(files_in.time.shape)} timesteps")
         ds1 = files_in
@@ -220,8 +231,8 @@ def open_and_remove_neg_pcp(files_in, nextmonth_file_in, vars_to_correct):
 
     # returns a dataset with the dt-version of thr variable iso the cumulative variable:
     for varname, varname_dt in vars_to_correct.items():
-        # print(f'   correcting {varname} into {varname_dt}' )
-        ds1 = correct_var(ds1, varname, varname_dt, ds2)
+
+        ds1 = correct_var(ds1, varname, varname_dt, ds2) #, neg_thrsh=neg_thrsh)
 
     #  return corrected dataset:
     return ds1
