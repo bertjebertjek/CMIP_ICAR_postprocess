@@ -1,10 +1,10 @@
 #!/bin/bash
-#PBS -l select=1:ncpus=1:mem=30GB
-#PBS -l walltime=12:00:00
+#PBS -l select=1:ncpus=1:mem=50GB
+#PBS -l walltime=02:00:00
 #PBS -A P48500028
 #PBS -q casper
 #PBS -N PP_Array
-#PBS -J 0-50:1
+#PBS -J 19-25:18
 #PBS -o job_output/array_3h.out
 #PBS -j oe
 
@@ -33,12 +33,13 @@ module load conda
 conda activate npl
 
 # ____________   Set arguments: (year = PBS_array_index) -_______________
-CMIP=CMIP5   # CMIP5 or CMIP6
+CMIP=CMIP5  # CMIP5 or CMIP6
 
 # Remove GCM cp from ICAR data? Requires GCM cp regdridded to ICAR grid.
 remove_cp=True                    # in case ICAR was run with rain_var=cp !
 
 dt=daily   # "daily" or "3hr"
+# dt=3hr   # "daily" or "3hr"
 
 if [[ "${CMIP}" == "CMIP5" ]]; then
 
@@ -50,11 +51,11 @@ if [[ "${CMIP}" == "CMIP5" ]]; then
 
     #- - - -  set model and scenarios  - - - - -
     # allModels=( CanESM2 CCSM4 CMCC-CM CNRM-CM5 GFDL-CM3 MIROC5 MRI-CGCM3)   #  CCSM4 CMCC-CM CNRM-CM5  GFDL-CM3 MIROC5 MRI-CGCM3
-    # allModels=(  GFDL-CM3 MIROC5 MRI-CGCM3 )  # CanESM2 ) #
-    allModels=(   CNRM-CM5 )
+    # allModels=( GFDL-CM3 )
+    allModels=( CNRM-CM5 )  #CCSM4 ) #
     # allScens=( historical )
-    # allScens=(  rcp45_2005_2050 ) # rcp85_2050_2100 ) #rcp45_2050_2100 rcp85_2050_2100 )
-    allScens=(rcp85_2005_2050 rcp85_2050_2100    ) #  rcp45_2050_2100 rcp85_2005_2050 ) #rcp45_2050_2100 rcp85_2005_2050 rcp85_2050_2100 )
+    # allScens=(  rcp85_2005_2050 ) # rcp85_2050_2100 ) #rcp45_2050_2100 rcp85_2050_2100 )
+    allScens=( rcp85_2050_2100    ) #  rcp45_2050_2100 rcp85_2005_2050 ) #rcp45_2050_2100 rcp85_2005_2050 rcp85_2050_2100 )
     # allScens=( rcp45_2005_2050 rcp45_2050_2100  historical)
 
 elif [[ "${CMIP}" == "CMIP6" ]]; then
@@ -62,11 +63,11 @@ elif [[ "${CMIP}" == "CMIP6" ]]; then
     # path_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_3hr
     path_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_3hr_month
     path_day_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_day
-    path_out=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_nocp_full2
+    path_out=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_nocp_full
     GCM_cp_path=/glade/derecho/scratch/bkruyt/${CMIP}/GCM_Igrid # -> move glade
 
-    allModels=( CanESM5 )
-    # allModels=( CMCC-CM2-SR5 )
+    # allModels=( CanESM5 )
+    allModels=( CMCC-CM2-SR5 )
     # allModels=( MIROC-ES2L )
     # allModels=(MPI-M.MPI-ESM1-2-LR )
     # allModels=(  NorESM2-MM )
@@ -74,8 +75,8 @@ elif [[ "${CMIP}" == "CMIP6" ]]; then
 
     # # #   hist needs 55 jobs, sspXX_2004 needs 0-46, sspXX_2049 needs 0-50!  # # #
     # allScens=( ssp245_2049 ) #ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
-    allScens=( hist ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
-    # allScens=(hist ssp245_2004 ssp245_2049  )
+    # allScens=( hist ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
+    allScens=(ssp245_2049  )
     # allScens=( ssp370_2004 ssp370_2049 ssp245_2004 ssp245_2049 )
 fi
 
