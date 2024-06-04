@@ -122,9 +122,9 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
         print(f"\n   correcting  neg pcp took: {time.time()-t0} sec")
 
 
-        # check again:
-        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
-        check.check_month( path_to_files=ds_fxd, m=m, ts_p_day=ts_per_day )
+        # # check again:
+        # print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        # check.check_month( path_to_files=ds_fxd, m=m, ts_p_day=ts_per_day )
 
         # ____________ aggregate to 3hr monthly files __________
         print(f"\n   **********************************************")
@@ -136,14 +136,14 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
             print(f"      input data already has 3hr timestep!")
             ds3hr = ds_fxd   #???  aggregate
 
-        # check again:
-        print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
-        check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
+        # # check again:
+        # print(f"\n   * * * * * * *  ceck again...  * * * * * * * ")
+        # check.check_month( path_to_files=ds3hr, m=m, ts_p_day=8 )
 
         # _________  remove cp  ____________
         if remove_cp:
             print(f"\n   **********************************************")
-            print( f'   removing GCM cp  {year}-{str(m).zfill(2)}')
+            print( f'   removing GCM cp  {year}-{str(m).zfill(2)}\n')
             t0 =time.time()
             ds3hr = cp.remove_3hr_cp( ds_in       = ds3hr,
                                         m           = m,
@@ -232,7 +232,7 @@ if __name__ == '__main__':
         ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-{str(10).zfill(2)}*.nc")
     except:  # if we don;t have month 10 (2005 / 2050 at end of period)
         ts_per_day = check.determine_time_step(f"{path_in}/{model}/{scenario}/{year}/icar_out_{year}-*.nc")  # {str(1).zfill(2)}
-    # print(f"  input timestep is {int(24/ts_per_day)} hr")
+    print(f"  input timestep is {int(24/ts_per_day)} hr")
 
     if ts_per_day is not None:
         correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,

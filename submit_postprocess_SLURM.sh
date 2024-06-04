@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --constraint=cpu
 #SBATCH --time=06:00:00
-#SBATCH --array=54-55
+#SBATCH --array=5-50
 #SBATCH --account=m4062
 #SBATCH --output=job_output/log_%x.%j.out
 
@@ -28,25 +28,23 @@ path_out=/global/cfs/cdirs/m4062/icar_output/CMIP6/GL_3h_fix_nocp
 
 
 # Remove GCM cp from ICAR data? Requires GCM cp regdridded to ICAR grid.
-remove_cp=False                     # in case no rain_var during run!
-GCM_cp_path=no_GCM_yet
-
+remove_cp=True                     # in case no rain_var during run!
+GCM_cp_path=/pscratch/sd/b/bkruyt/CMIP/greatlakes/GCM_Igrid_GL
+dt=3hr
 
 # model=CanESM5
 # model=CMCC-CM2-SR5
-# model=MIROC-ES2L  # hist till 2014!! has GCM cp!
+model=MIROC-ES2L  # hist till 2014!! has GCM cp!
 # model=MPI-M.MPI-ESM1-2-LR
-model=NorESM2-MM
+# model=NorESM2-MM # rem_cp=F
 
 # # #   hist needs 55 jobs, sspXX_2004 needs 0-46, sspXX_2049 needs 0-50!  # # #
 
-# allScens=(hist ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
-# allScens=(hist ssp370_2004 ssp370_2049 ssp245_2004 ssp245_2049 )
-# allScens=(ssp245_2004 ) #ssp245_2049 )
-# allScens=(ssp245_2049 )
-# allScens=(ssp585_2004 ) # ssp585_2049 )
+# allScens=(historical  ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
+# allScens=(hist ssp370_2004 ssp370_2049 )
+# allScens=( historical ssp585_2004  ssp585_2049 )
 # allScens=(ssp370_2049)
-allScens=( historical )
+allScens=( ssp370_2004 )
 
 
 
@@ -78,11 +76,15 @@ for scen in ${allScens[@]}; do
     echo "  remove cp is $remove_cp "
     echo " "
 
-    # # # Launch the 24h file script:
-    python -u main_24hr.py $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
+    # # # # # Launch the 24h file script: (not tested yet for 3h inputs)
+    if [[ "${dt}" == "daily" ]]; then
+        python -u main_24hr.py $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_daily/${model}_${scen}/${year}
 
-    # # # Launch the 3h file script:
-    python -u main_3hr.py  $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_3hr/${model}_${scen}/${year}
+    # # # # # # Launch the 3h file script:
+    elif [[ "${dt}" == "3hr" ]]; then
+        python -u main_3hr.py  $path_in $path_out $year $model  $scen $remove_cp $GCM_cp_path >& job_output_3hr/${model}_${scen}/${year}
+
+    fi
 
     echo " "
     echo " - - -    Done processing daily & 3hr files for $model $scen  - - - - -"

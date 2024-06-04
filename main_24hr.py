@@ -29,6 +29,7 @@ import sys
 import cftime
 import argparse
 import time
+import subprocess
 
 # import functions
 import check_complete as check
@@ -140,7 +141,7 @@ def correct_to_yearly_24hr_files( path_in, path_out, model, scenario, year,
         print( f'   removing GCM cp  {year}-{str(m).zfill(2)}')
         t0 =time.time()
         ds24hr = cp.remove_24hr_cp( ds_in       = ds24hr,
-                                    m           = m,
+                                    # m           = m,
                                     year        = year,
                                     model       = model,
                                     scen        = scenario.split('_')[0],
@@ -194,8 +195,11 @@ if __name__ == '__main__':
 
 
     # # #  Additional settings (might become arguments )  # # #
-    # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
-    noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+    if os.uname()[1][:5] == "login" or os.uname()[1][:3] == "nid":
+        noise_path  = '/global/cfs/cdirs/m4062/bert/uniform_noise_480_480.nc'
+    else:
+        noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
+
     drop_vars    = False
     cor_neg_pcp  = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
 
