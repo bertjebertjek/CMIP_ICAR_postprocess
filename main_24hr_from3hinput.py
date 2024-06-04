@@ -91,14 +91,15 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
         path_in_month = f"{path_in}/{model}_{scenario}/3hr"
         path_in_year = f"{path_in}/{model}_{scenario}/daily"
 
-    for m in range(1,13):
-            # path_m = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc"
+    if check_for_err:
+        for m in range(1,13):
+                # path_m = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc"
 
-        print(f"   checking {year}-{str(m).zfill(2)}")
-        check_result = check.check_month(
-            path_to_files = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc",
-            m = m, ts_p_day = ts_per_day
-            )
+            print(f"   checking {year}-{str(m).zfill(2)}")
+            check_result = check.check_month(
+                path_to_files = f"{path_in_month}/icar_*_{year}-{str(m).zfill(2)}*.nc",
+                m = m, ts_p_day = ts_per_day
+                )
 
         # ________ interpolate / fill missing timesteps  __________
         # if check_result == not None:
@@ -107,7 +108,7 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
 
     # ____________       corr neg pcp      _____________
     #
-    #     make timestep precip vars  &  fix neg precip (should be separate functions, so we can turn them on/off indiv.)
+    # make timestep precip vars  &  fix neg precip (should be separate functions, so we can turn them on/off indiv.)
 
     if cor_neg_pcp:
         print(f"\n   **********************************************")
@@ -129,20 +130,23 @@ def correct_to_yearly_24hr_files_day_in( path_in, path_out, model, scenario, yea
             )
         print(f"\n   correcting  neg pcp took: {np.round(time.time()-t0,1)} sec")
     else:
-         # in this case we should still disaggregate pcp!!
-         print("   NOT IMPLEMENTED YET, Stopping")
-         sys.exit()
+         ds_fxd = xr.open_mfdataset( file_day_in , parallel=True)
+         print("! ! !  WARNING:   NOT correcting neg precip! Caution!")
+        #  sys.exit()
 
 
 
     # ____________ aggregate to 24hr yearly files __________
-    print(f"\n   **********************************************")
-    print(f"   aggregating to yearly 24hr files: {year}")
-    t0 =time.time()
-    # precip is now dt, correct attrs etc...
-    ds24hr = change_temporal_res.make_yearly_24h_file( ds_fxd ) #, directory_3hr=path_out)
-    print(f"\n   aggregating to 24hr took: {np.round(time.time()-t0,1)} sec")
+    if 'Prec' not in ds_fxd.data_vars:
+        print(f"\n   **********************************************")
+        print(f"   aggregating to yearly 24hr files: {year}")
+        t0 =time.time()
 
+        ds24hr = change_temporal_res.make_yearly_24h_file( ds_fxd ) #, directory_3hr=path_out)
+        print(f"\n   aggregating to 24hr took: {np.round(time.time()-t0,1)} sec")
+    else:
+        print("\n ! input is already in 24hr format! \n")
+        ds24hr = ds_fxd
 
     # _____________  only save the precip from this correction, add to exisiting daily files: _______
     # Calculation of Tmin, Tmax from 1h data is better, and is what we want to keep!
@@ -226,8 +230,8 @@ if __name__ == '__main__':
     # noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
     noise_path   = None
     drop_vars    = False
-    cor_neg_pcp  = True # also does the pcp_cum -> pcp_dt, so keep set at True (for now)
-
+    cor_neg_pcp  = False # also does the pcp_cum -> pcp_dt (3hr), so keep set at True (for now)
+    check_for_err= False # check 3hr input files for NaNs and other errors
 
     ########          correct negative variables          ########
     vars_to_correct_3hr = {'precipitation'   : 'precip_dt',
@@ -243,14 +247,15 @@ if __name__ == '__main__':
     if "CMIP6" in path_in :
         file_day_in = f"{path_day_in}/{model}_{scenario}/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
     else:
-        # file_day_in = f"{path_day_in}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
-        file_day_in = f"{path_day_in}/{model}_{scenario}/yearly/icar_yearly_{model}_{scenario}_{year}.nc" # yearly files load quicker?
+        file_day_in = f"{path_day_in}/{model}_{scenario}/daily/icar_daily_{model}_{scenario.split('_')[0]}_{year}*.nc"
+        # file_day_in = f"{path_day_in}/{model}_{scenario}/yearly/icar_yearly_{model}_{scenario}_{year}.nc" # yearly files load quicker? but do not have Wind....
 
     # todo: make a function that sets all paths
 
     print(f"\n#######################################  ")
     print(f"   Making daily corrected ICAR files for: " )
     print(f"      {model}   {scenario}   {year}      \n")
+    print(f"   correcting neg pcp:      {cor_neg_pcp}    ")
     print(f"   remove GCM cp:           {remove_cp}    ")
     if noise_path is not None:
         print(f"   and adding noise from:   {noise_path}       ")

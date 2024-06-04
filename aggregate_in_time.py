@@ -181,17 +181,21 @@ def make_yearly_24h_file( ds_in ):
         print( f"! ! !  ERROR:  define precip variable in ICAR  dataset")
         sys.exit()
 
+    # or
+    # if precip_var=='Prec': return ds1
 
     ############################################################
     # # # # # # #              24 hourly              # # # # # #
     ############################################################
-
-    # Tmax, Tmin, Wind Speed, Daily Precipitation
-    t_max          = ds1['ta2m'].resample(time='D').max(dim='time').to_dataset(name='Tmax').astype('float32')
-    t_min          = ds1['ta2m'].resample(time='D').min(dim='time').to_dataset(name='Tmin').astype('float32')
-    wind_speed     = np.abs((np.sqrt(ds1['u10m']**2+ds1['v10m']**2))).resample(time='D').mean(dim='time').to_dataset(name='Wind').astype('float32')
+    if 'ta2m' in ds1.data_vars:
+        # Tmax, Tmin, Wind Speed, Daily Precipitation
+        t_max          = ds1['ta2m'].resample(time='D').max(dim='time').to_dataset(name='Tmax').astype('float32')
+        t_min          = ds1['ta2m'].resample(time='D').min(dim='time').to_dataset(name='Tmin').astype('float32')
+    if 'wind_speed' not in ds1.data_vars:
+        wind_speed     = np.abs((np.sqrt(ds1['u10m']**2+ds1['v10m']**2))).resample(time='D').mean(dim='time').to_dataset(name='Wind').astype('float32')
     # precDaily = ds1[pcp_var].diff(dim='time', label='lower').resample(time='D').sum(dim='time').to_dataset(name='Prec')
-    precDaily = ds1[precip_var].resample(time='D').sum(dim='time').to_dataset(name='Prec').astype('float32')
+    if 'Prec' not in ds1.data_vars:
+        precDaily = ds1[precip_var].resample(time='D').sum(dim='time').to_dataset(name='Prec').astype('float32')
 
 
     # combine into new dataset
