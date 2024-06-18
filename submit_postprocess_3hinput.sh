@@ -1,12 +1,14 @@
 #!/bin/bash
 #PBS -l select=1:ncpus=1:mem=50GB
-#PBS -l walltime=02:00:00
+#PBS -l walltime=09:00:00
 #PBS -A P48500028
 #PBS -q casper
 #PBS -N PP_Array
-#PBS -J 19-25:18
-#PBS -o job_output/array_3h.out
+#PBS -J 0-50
+#PBS -o job_output/array_3h_swe.out
 #PBS -j oe
+#PBS -r y
+
 
 ##############################################################################
 #
@@ -16,10 +18,10 @@
 #   - correct negative precip values
 #   - aggregate to 3hr (24hr) timestep & monthly (yearly) files
 #   - remove GCM cp (optional, set flag to true)
-#   - drop unwanted variables from dataset (drop_vars flag in main.py, default=True)
+#   - drop unwanted variables from dataset (list called vars_to_drop  in main.py )
 #
-# (runtime ca 1.5 hr per scen-year (24hr + 3hr) - incorrect?)
-# when running 3h and daily seprately: 3hr requires more mem (150GB?) daily : 50GB - 3hours per mod-scen?
+# (runtime ca 1.5 hr per scen-year (24hr + 3hr) - check?)
+#
 #
 # Bert Kruyt NCAR RAL 2024
 ##############################################################################
@@ -33,13 +35,13 @@ module load conda
 conda activate npl
 
 # ____________   Set arguments: (year = PBS_array_index) -_______________
-CMIP=CMIP5  # CMIP5 or CMIP6
+CMIP=CMIP6  # CMIP5 or CMIP6
 
 # Remove GCM cp from ICAR data? Requires GCM cp regdridded to ICAR grid.
 remove_cp=True                    # in case ICAR was run with rain_var=cp !
 
-dt=daily   # "daily" or "3hr"
-# dt=3hr   # "daily" or "3hr"
+# dt=daily   # "daily" or "3hr"
+dt=3hr   # "daily" or "3hr"
 
 if [[ "${CMIP}" == "CMIP5" ]]; then
 
@@ -63,21 +65,23 @@ elif [[ "${CMIP}" == "CMIP6" ]]; then
     # path_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_3hr
     path_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_3hr_month
     path_day_in=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_day
-    path_out=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_nocp_full
+    # path_out=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_nocp_full
+    path_out=/glade/campaign/ral/hap/bert/${CMIP}/WUS_icar_nocp_full_swe
     GCM_cp_path=/glade/derecho/scratch/bkruyt/${CMIP}/GCM_Igrid # -> move glade
 
-    # allModels=( CanESM5 )
-    allModels=( CMCC-CM2-SR5 )
+    allModels=( CanESM5 )
+    # allModels=( CMCC-CM2-SR5 )
     # allModels=( MIROC-ES2L )
-    # allModels=(MPI-M.MPI-ESM1-2-LR )
-    # allModels=(  NorESM2-MM )
-    # allModels=( CMCC-CM2-SR5 MIROC-ES2L  MPI-M.MPI-ESM1-2-LR NorESM2-MM )
+    # allModels=( MPI-M.MPI-ESM1-2-LR )
+    # allModels=( NorESM2-MM )
+    # allModels=( CanESM5 CMCC-CM2-SR5 MIROC-ES2L  MPI-M.MPI-ESM1-2-LR NorESM2-MM )
 
     # # #   hist needs 55 jobs, sspXX_2004 needs 0-46, sspXX_2049 needs 0-50!  # # #
     # allScens=( ssp245_2049 ) #ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
     # allScens=( hist ssp245_2004 ssp245_2049 ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
-    allScens=(ssp245_2049  )
-    # allScens=( ssp370_2004 ssp370_2049 ssp245_2004 ssp245_2049 )
+    # allScens=(ssp245_2004  )
+    # allScens=(hist )
+    allScens=( ssp370_2004 ssp370_2049 ssp585_2004 ssp585_2049 )
 fi
 
 #_______________ launch the python script _____________
@@ -107,8 +111,6 @@ for scen in ${allScens[@]}; do
     echo " "
     echo "Launching yearly 24hr & 3hr file correction for $model $scen ${year}"
     echo " "
-
-    # (un)comment the 24h / 3h code below as desired
 
     # # # # # Launch the 24h file script: (not tested yet for 3h inputs)
     if [[ "${dt}" == "daily" ]]; then

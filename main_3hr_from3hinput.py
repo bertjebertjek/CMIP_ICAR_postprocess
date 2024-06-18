@@ -38,7 +38,22 @@ import fix_neg_pcp as fix
 import remove_cp as cp
 
 
+###############   CAUTION!  ###################
+# the variables to remove: (set to 'None' to keep all output vars)
 
+### CMIP 5/6 PNNL: #### (/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full)
+# vars_to_drop=["swe", "soil_water_content", "hfls", # "hus2m",
+#             "runoff_surface","runoff_subsurface",
+#             "soil_column_total_water","soil_column_total_water",
+#             "ivt","iwv","iwl","iwi", "snowfall_dt", "cu_precip_dt", "graupel_dt"]
+
+
+### CMIP6 paper :  ### (/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full_swe)
+vars_to_drop=[ "soil_water_content", "hfls", # "hus2m","swe","snowfall_dt", "cu_precip_dt","ivt","iwv"
+            "runoff_surface","runoff_subsurface",
+            "soil_column_total_water","soil_column_total_water",
+            "iwl","iwi",  "graupel_dt"]
+############################################################
 
 
 #################################
@@ -66,7 +81,7 @@ def process_command_line():
 ###################################################################################
 def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
                                  GCM_path  = '/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
-                                 drop_vars = False
+                                #  drop_vars = False
                                 ):
     '''Post process hourly ICAR output to monthly files with 3hr timestep'''
 
@@ -149,7 +164,8 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
                                         scen        = scenario.split('_')[0],
                                         GCM_path    = GCM_path,
                                         noise_path  = noise_path,
-                                        drop_vars   = drop_vars
+                                        # drop_vars   = drop_vars,
+                                        vars_to_drop=vars_to_drop  # set to None to switch of dropping
                                         )
             print(f"\n   removing cp took: {np.round(time.time()-t0,1)} sec")
 
@@ -163,16 +179,23 @@ def correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
             scen_out = scenario
 
         file_out_3hr  = f"{path_out_3hr}/{model}_{scen_out}/3hr/icar_3hr_{model}_{scen_out.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
-        # file_out_3hr  = f"{path_out_3hr}/{model}_{scenario}/3hr/icar_3hr_{model}_{scenario.split('_')[0]}_{year}-{str(m).zfill(2)}.nc"
+
         print(f"\n   **********************************************")
         print( '   writing 3hfile to ', file_out_3hr )
 
         if not os.path.exists(f"{path_out_3hr}/{model}_{scen_out}/3hr"):
             os.makedirs(f"{path_out_3hr}/{model}_{scen_out}/3hr")
 
-        ds3hr.to_netcdf(file_out_3hr, encoding={'time'      :{'units':"days since 1900-01-01"},
-                                                'precip_dt' :{'dtype':"float32"}
-                                                } )
+        if "snowfall_dt" in ds3hr.data_vars or "cu_precip_dt" in ds3hr.data_vars :
+            ds3hr.to_netcdf(file_out_3hr, encoding={'time'      :{'units':"days since 1900-01-01"},
+                                                    'precip_dt' :{'dtype':"float32"},
+                                                    'cu_precip_dt' :{'dtype':"float32"},
+                                                    'snowfall_dt' :{'dtype':"float32"}
+                                                    } )
+        else:
+            ds3hr.to_netcdf(file_out_3hr, encoding={'time'      :{'units':"days since 1900-01-01"},
+                                                    'precip_dt' :{'dtype':"float32"}
+                                                    } )
 
 
         # end month loop:
@@ -212,7 +235,7 @@ if __name__ == '__main__':
     # noise_path  = '/pscratch/sd/b/bkruyt/CMIP/uniform_noise_480_480.nc'
     # noise_path   = '/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc'
     noise_path   = None
-    drop_vars    = True
+    # drop_vars    = True
 
     print(f"\n##############################################  ")
     print(f"   Making 3-hourly corrected ICAR files for: " )
@@ -223,7 +246,8 @@ if __name__ == '__main__':
     else:
         print(f"")
         # print(f" !  NOT adding noise !!! ")
-    print(f"   drop unwanted variables: {drop_vars}       ")
+    if vars_to_drop is not None:
+        print(f"   drop unwanted variables: {vars_to_drop}       ")
     print(f"##############################################  \n")
 
     # determine timestep (nr of timesteps per day): (currently diagnostic only)
@@ -238,8 +262,8 @@ if __name__ == '__main__':
 
     if ts_per_day is not None:
         correct_to_monthly_3hr_files( path_in, path_out_3hr, model, scenario, year,
-                                    GCM_path   = GCM_path,
-                                    drop_vars  = drop_vars
+                                    GCM_path   = GCM_path
+                                    # drop_vars  = drop_vars
                                     )
     else:
         print(f" could not determine input timestep")

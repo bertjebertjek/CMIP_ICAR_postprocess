@@ -35,19 +35,11 @@ dask.config.set(**{'array.slicing.split_large_chunks': True})
 #         SETTTINGS
 #######################################
 
-# the variables to remove:
-vars_to_drop=["swe", "soil_water_content", "hfls", # "hus2m",
-            "runoff_surface","runoff_subsurface",
-            "soil_column_total_water","soil_column_total_water",
-            "ivt","iwv","iwl","iwi", "snowfall_dt", "cu_precip_dt", "graupel_dt"]
-
-
-
-# # #   NOISE  # # # #
-# noise_path = "/glade/derecho/scratch/bkruyt/CMIP6"
-# NOISE_u = xr.open_dataset(f"{noise_path}/uniform_noise_480_480.nc" )
-# u_noise = NOISE_u.uniform_noise  #.load() # 55000 x 480 x480
-
+# # the variables to remove: (moved to main_3hr_from3hinput)
+# vars_to_drop=["swe", "soil_water_content", "hfls", # "hus2m",
+#             "runoff_surface","runoff_subsurface",
+#             "soil_column_total_water","soil_column_total_water",
+#             "ivt","iwv","iwl","iwi", "snowfall_dt", "cu_precip_dt", "graupel_dt"]
 
 
 
@@ -64,7 +56,7 @@ def process_command_line():
     parser.add_argument('model',     help='model')
     parser.add_argument('scenario',  help='scenario to process; one of hist, sspXXX_2004, sspXXX_2049')
     parser.add_argument('dt',        help="time step of input ICAR data, either 'daily' or '3hr' ")
-    parser.add_argument('drop_vars',      help="drop variables that are not wanted (3hr only)", default=False,nargs="?")
+    # parser.add_argument('drop_vars',      help="drop variables that are not wanted (3hr only)", default=False,nargs="?")
     return parser.parse_args()
 
 
@@ -73,7 +65,7 @@ def myround(x, base=5):
     return int(base * np.floor(float(x)/base))
 
 
-def drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop):
+def drop_unwanted_vars(ds_in, vars_to_drop=None):
 
     for v in vars_to_drop:
         if v not in ds_in.data_vars:
@@ -91,9 +83,8 @@ def drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop):
 def remove_3hr_cp(ds_in, m, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
                   noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
-                  drop_vars=False,
-                #   CMIP=CMIP,
-                  vars_to_drop=vars_to_drop
+                  vars_to_drop=None,
+                #   drop_vars=False, #  should just check for vars_to_drop=None ?
                   ):
 
     # for legacy code?
@@ -188,7 +179,9 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
         print("   Max prec slice gives error! ")
 
     # ----------- Remove unwanted vars (optional)  --------------
-    if drop_vars:
+    # if drop_vars:
+    if vars_to_drop is not None:
+        print(f"   dropping {len(vars_to_drop)} variables from dataset")
         ds_in = drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop)
 
     # ------- add corrected precip to dataset ----------
@@ -209,8 +202,8 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
 def remove_24hr_cp(ds_in, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
                   noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
-                  drop_vars=False,
-                  vars_to_drop=vars_to_drop
+                #   drop_vars=False,
+                  vars_to_drop=None
                   ):
 
     #______ noise ______
@@ -231,6 +224,7 @@ def remove_24hr_cp(ds_in, year, model, scen,
     else:
         print( f"! ! !  ERROR:  define precip variable in ICAR  dataset")
         sys.exit()
+
 
     # -----------------open GCM on ICARgrid --------------
     if "CMIP6" in GCM_path: # one file per scen
@@ -299,9 +293,9 @@ def remove_24hr_cp(ds_in, year, model, scen,
 
 
     # ----------- Remove unwanted vars (optional - not for daily)  --------------
-    # if args.drop_vars and dt=="3hr":
-    #     ds_in = drop_unwanted_vars(ds_in)
-
+    if vars_to_drop is not None:
+        print(f"   dropping {len(vars_to_drop)} variables")
+        ds_in = drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop)
 
 
     # ------- save ----------
@@ -343,6 +337,6 @@ if __name__=="__main__":
     for m in range(1,13):
 
         # aggregate in dict and concat?
-        ds3hr_month = remove_3hr_cp(ds_in, m=m, year=year, model=model, scen=scen, drop_vars=False)
+        ds3hr_month = remove_3hr_cp(ds_in, m=m, year=year, model=model, scen=scen) #, drop_vars=False)
 
     # ds3hr = xr.concat( ....)
