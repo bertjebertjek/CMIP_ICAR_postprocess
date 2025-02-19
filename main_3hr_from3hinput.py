@@ -42,17 +42,17 @@ import remove_cp as cp
 # the variables to remove: (set to 'None' to keep all output vars)
 
 ### CMIP 5/6 PNNL: #### (/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full)
-# vars_to_drop=["swe", "soil_water_content", "hfls", # "hus2m",
-#             "runoff_surface","runoff_subsurface",
-#             "soil_column_total_water","soil_column_total_water",
-#             "ivt","iwv","iwl","iwi", "snowfall_dt", "cu_precip_dt", "graupel_dt"]
-
-
-### CMIP6 paper :  ### (/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full_swe)
-vars_to_drop=[ "soil_water_content", "hfls", # "hus2m","swe","snowfall_dt", "cu_precip_dt","ivt","iwv"
+vars_to_drop=["swe", "soil_water_content", "hfls", # "hus2m",
             "runoff_surface","runoff_subsurface",
             "soil_column_total_water","soil_column_total_water",
-            "iwl","iwi",  "graupel_dt"]
+            "ivt","iwv","iwl","iwi", "snowfall_dt", "cu_precip_dt", "graupel_dt"]
+
+
+# ### CMIP6 paper :  ### (/glade/campaign/ral/hap/bert/CMIP6/WUS_icar_nocp_full_swe)
+# vars_to_drop=[ "soil_water_content", "hfls", # "hus2m","swe","snowfall_dt", "cu_precip_dt","ivt","iwv"
+#             "runoff_surface","runoff_subsurface",
+#             "soil_column_total_water","soil_column_total_water",
+#             "iwl","iwi",  "graupel_dt"]
 ############################################################
 
 

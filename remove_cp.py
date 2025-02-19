@@ -2,7 +2,7 @@
 # coding: utf-8
 ######################################################################################################
 #
-# Remove GCM cp from 3hr ICAR dataset and add noise
+# Remove GCM cp from 3hr ICAR dataset
 #    - requires GCM cp regridded to ICAR grid (in GCM path)
 #    -
 #
@@ -49,7 +49,7 @@ dask.config.set(**{'array.slicing.split_large_chunks': True})
 
 def process_command_line():
     '''Parse the commandline'''
-    parser = argparse.ArgumentParser(description='remove GCM convective precip, add noise')
+    parser = argparse.ArgumentParser(description='remove GCM convective precip')
     # parser.add_argument('path_in',   help='path 3h/daily files (should have these as subdirs)')
     # parser.add_argument('path_out',   help='path to write to')
     parser.add_argument('year',      help='year to process')
@@ -67,12 +67,15 @@ def myround(x, base=5):
 
 def drop_unwanted_vars(ds_in, vars_to_drop=None):
 
+    drp=[]
     for v in vars_to_drop:
         if v not in ds_in.data_vars:
             print(f"var to drop {v} not in ds_in.data_vars")
             continue
+        else:
+            drp.append(v)
 
-    ds_out = ds_in.drop_vars(vars_to_drop)
+    ds_out = ds_in.drop_vars(drp)
 
     return ds_out
 
@@ -82,7 +85,7 @@ def drop_unwanted_vars(ds_in, vars_to_drop=None):
 ##############################
 def remove_3hr_cp(ds_in, m, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
-                  noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
+                  noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc", # remove from func call in main.py
                   vars_to_drop=None,
                 #   drop_vars=False, #  should just check for vars_to_drop=None ?
                   ):
@@ -90,17 +93,16 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
     # for legacy code?
     dt='3hr'
 
-    ## N.B> Noise is only added if Noise path is not None
-    if noise_path is not None:
-        print(f"\n   Adding noise from {noise_path} \n")
-        u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
+    # ## N.B> Noise is only added if Noise path is not None
+    # if noise_path is not None:
+    #     print(f"\n   Adding noise from {noise_path} \n")
+    #     u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
 
 
     #___________ GCM cp ____________
     print("GCM_path[-4:]: ", GCM_path[-4:], " scen=", scen)
-    # if GCM_path[-4:] == "_3hr":   # CMIP5
+
     if "CMIP5" in GCM_path:
-    # if CMIP == "CMIP5":
         if scen=="historical" or scen=="historical/3hr": # no historical subfolder, in rcp45/85
             print(f'historical; opening  "{GCM_path}/rcp45/{model}/{model}*_cp_3hr_Igrid_{year}.nc')
             ds_convective_p= xr.open_mfdataset(
@@ -152,23 +154,17 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
 
     #----------------- subtract -----------------
     # Units are modified rom GCM kg m-2 s-1 to kg m-2
-    # if dt =="daily":
-    #     dsP_out=ds_in[precip_var]-ds_convective_p_sub * 60*60*24
-    #     print(f"   timestep is {dt}, so multiplying GCM-cp by 60*60*24")
-    # elif dt =="3hr":
-    dsP_out=ds_in[precip_var]-ds_convective_p_sub * 60*60*3
-    print(f"   timestep is {dt}, so multiplying GCM-cp by 60*60*3")
+        # 2024 08 14: notebook GCM_cp_check.ipynb shows comparison CMIP5/6 cp and how the units are different
+    if "CMIP6" in GCM_path:
+        units_conv = 60*60*3 # no idea why this is reduced to 1h, maybe by Abby?
+    elif "CMIP5" in GCM_path:
+        units_conv = 60*60*3/4 # Ryan's GCM cp has different units?
 
-    #----------------- add noise -----------------
-    if noise_path is not None:
-        noise_val= 0.01
-        t=len(ds_in.time)
-        noise_arr = noise_val * u_noise[0 : t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-
-        # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
-        dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
-        print("  Noise added! ")
-
+    dsP_out=ds_in[precip_var]-ds_convective_p_sub * units_conv
+    print(f"   timestep is {dt}, so multiplying GCM-cp by {units_conv} to obtain kg m-2")
+    print(f"   Be sure to check GCM cp units in input!!!!! ")
+    print(f"    GCM cp sum for {year} {m}: {ds_convective_p_sub.sum().values} kg m-2 s-1 or {ds_convective_p_sub.sum().values*units_conv/10e3} 10e3 kg m-2 ")
+    print(f"    ICAR pcp sum (inc GCMcp): {ds_in[precip_var].sum().values/10e3 } 10e3 kg m-2")
     # # somehow subtracting the GCM cp does introduce negative values again, so we make sure those are set to zero: (this was probably because we subtracted 60*60*24 iso 60*60*6)?
     dsP_out=xr.where(dsP_out<0,0, dsP_out)  # not in all daily data! only files processed after November 1st 2023
 
@@ -201,17 +197,10 @@ def remove_3hr_cp(ds_in, m, year, model, scen,
 ##############################
 def remove_24hr_cp(ds_in, year, model, scen,
                   GCM_path='/glade/derecho/scratch/bkruyt/CMIP6/GCM_Igrid',
-                  noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
+                #   noise_path = "/glade/derecho/scratch/bkruyt/CMIP6/uniform_noise_480_480.nc",
                 #   drop_vars=False,
                   vars_to_drop=None
                   ):
-
-    #______ noise ______
-    ## N.B> Noise is only added if Noise path is not None
-    if noise_path is not None:
-        print(f"\n   Adding noise from {noise_path} \n")
-        u_noise = xr.open_dataset(f"{noise_path}" ).uniform_noise  #.load() # 55000 x 480 x480
-
 
 
     # ______ ICAR pcp var _______
@@ -227,6 +216,8 @@ def remove_24hr_cp(ds_in, year, model, scen,
 
 
     # -----------------open GCM on ICARgrid --------------
+    print(f"   opening GCM cp from: {GCM_path}"   )
+    print(f"   ! ! !   CHECK input units of GCM cp thoroughly  ! ! ! " )
     if "CMIP6" in GCM_path: # one file per scen
         if scen=='hist': # hist is included in the scen folder
             ds_convective_p=xr.open_dataset(
@@ -237,18 +228,15 @@ def remove_24hr_cp(ds_in, year, model, scen,
                 f'{GCM_path}/daily/{scen}/{ model}_bias_corr_convective_prec_regrid_{scen}_1950-2099.nc'
                 )
     elif "CMIP5" in GCM_path: # one file per scen
-        # # CMIP5 DAILY :
         if scen == 'rcp45' and  model=='MRI-CGCM3':
-            GCM_path='/glade/derecho/scratch/bkruyt/CMIP5/GCM_Igrid_3hr/rcp45' # this one was missing and is on my scratch iso Ryan's
+            # GCM_path='/glade/derecho/scratch/bkruyt/CMIP5/GCM_Igrid_3hr/rcp45' # this one was missing and is on my scratch iso Ryan's
+            GCM_path='/glade/derecho/scratch/bkruyt/CMIP5/GCM_Igrid_daily'
         else:
             GCM_path='/glade/campaign/ral/hap/currierw/icar/output'
-        print(f"   opening GCM cp from: {GCM_path}" #/daily/{ model}_bias_corr_convective_prec_regrid_{scen}_1950-2099.nc"
-              )
         scen_temp="rcp85" if scen=="historical" else scen
         print(f"  scen_temp={scen_temp}")
 
         ds_convective_p=xr.open_dataset(
-                # f'{GCM_path}/daily/{model}_bias_corr_convective_prec_regrid_{scen_temp}_1950-2099.nc'
                 f'{GCM_path}/{model}_bias_corr_convective_prec_regrid_{scen_temp}_1950-2099.nc'
                 ) # e.g.  MRI-CGCM3_bias_corr_convective_prec_regrid_rcp85_1950-2099.nc
         if "y" in ds_convective_p.dims:
@@ -261,46 +249,43 @@ def remove_24hr_cp(ds_in, year, model, scen,
     print(f"    GCM cp shape: {ds_convective_p_sub.shape }")
     print(f"    ICAR pcp shape: {ds_in[precip_var].shape }")
 
-    # Interpolate one more timestep at the end of GCM file.
-
     print(f"    GCM times: {ds_convective_p_sub.time.values.min() } to {ds_convective_p_sub.time.values.max()}")
     print(f"    ICAR times: {ds_in.time.values.min() } to {ds_in.time.values.max()}")
 
 
     #----------------- subtract -----------------
     # Units are modified rom GCM kg m-2 s-1 to kg m-2
-    dsP_out=ds_in[precip_var]-ds_convective_p_sub * 60*60*24
-    print(f"   timestep is 24hr, so multiplying GCM-cp by 60*60*24")
+    # 2024 08 14: notebook GCM_cp_check.ipynb shows comparison CMIP5/6 cp and how the units are different
+    if "CMIP6" in GCM_path:
+        units_conv = 60*60*24 # no idea why this is reduced to 1h, maybe by Abby?
+    elif "CMIP5" in GCM_path or "currierw" in GCM_path :
+        units_conv = 60*60*6 # org GCM data has 6h timestep, daily is summed(?) so to convert to kg m-2 mult. by 6
 
-    # print(dsP_out)
-    #----------------- add noise -----------------
-    if noise_path is not None:
-        noise_val= 0.01
-        # noise_arr = noise_val * u_noise[:dsP_out.shape[0], :dsP_out.shape[1], :dsP_out.shape[2] ]
-        t=len(ds_in.time)
-        noise_arr = noise_val * u_noise[(int(year) - 1950) * t : (int(year)-1950+1) * t , :dsP_out.shape[1], :dsP_out.shape[2] ]
-        # # only the values that are 0 should get noise added, the values that aren’t 0 should get 0.1 (or whatever) added to them
-        dsP_out = xr.where( dsP_out>0, dsP_out + noise_val, noise_arr.values)
+    dsP_out=ds_in[precip_var]-ds_convective_p_sub * units_conv
+
+    print(f"   multiplying GCM-cp by {units_conv} to go from kg m-2 s-1 to kg m-2")
+    print(f"    GCM cp sum for year {year}: {ds_convective_p_sub.sum().values} kg m-2 s-1 or {ds_convective_p_sub.sum().values*units_conv/10e6} 10e6 kg m-2 ")
+    print(f"    ICAR pcp sum (inc GCMcp): {ds_in[precip_var].sum().values/10e6 } 10e6 kg m-2")
+
 
     # # somehow subtracting the GCM cp does introduce negative values again, so we make sure those are set to zero: (this was probably because we subtracted 60*60*24 iso 60*60*6)?
     dsP_out=xr.where(dsP_out<0,0, dsP_out)  # not in all daily data! only files processed after November 1st 2023
 
     try:
-        print("   Min ICAR (out) prec, after adding noise: ", np.nanmin(dsP_out.values)   ," kg/m-2"   )
-        print("   Max ICAR (out) prec, after adding noise: ", np.nanmax(dsP_out.values)   ," kg/m-2"   )
+        print("   Min ICAR (out) prec, after post processing: ", np.nanmin(dsP_out.values)   ," kg/m-2"   )
+        print("   Max ICAR (out) prec, after post processing: ", np.nanmax(dsP_out.values)   ," kg/m-2"   )
     except:
         print("   Max prec slice gives error! ")
 
 
-    # ----------- Remove unwanted vars (optional - not for daily)  --------------
-    if vars_to_drop is not None:
-        print(f"   dropping {len(vars_to_drop)} variables")
-        ds_in = drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop)
+    # # ----------- Remove unwanted vars (optional - not for daily)  --------------
+    # if vars_to_drop is not None:
+    #     print(f"   dropping {len(vars_to_drop)} variables")
+    #     ds_in = drop_unwanted_vars(ds_in, vars_to_drop=vars_to_drop)
 
 
     # ------- save ----------
     ds_in[precip_var].values = dsP_out.values
-    # ds_in[precip_var].attrs = {"note":"Removed GCM's convective precipitation from total precipitation"}
     ds_in[precip_var].attrs["processing_note3"] = "Removed GCM's convective precipitation from total precipitation"
 
     # print("   Max ICAR (out) prec: ", np.nanmax(ds_in[precip_var].values) ," kg/m-2"   )
